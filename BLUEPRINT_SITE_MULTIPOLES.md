@@ -2,6 +2,83 @@
 
 Relevé effectué le 23 avril 2026 depuis les pages publiques.
 
+<p align="center">
+  <img src="assets/blueprint/logo-white.jpg" alt="Logo Multi-Pôles" width="180"/>
+</p>
+
+<p align="center">
+  <img src="assets/blueprint/hero-0.png" alt="Hero produit Multi-Pôles" width="720"/>
+</p>
+
+---
+
+## Arborescence visuelle
+
+```mermaid
+flowchart TD
+    Home["🏠 /"]
+    Solutions["/solutions"]
+    PLV["#plv"]
+    Pack["#packaging"]
+    Print["#print"]
+    Realisations["/realisations"]
+    Apropos["/apropos"]
+    Equipe["/equipe<br/>⚠️ orphan"]
+    Blog["/blog<br/>⚠️ orphan"]
+    Contact["/contact"]
+    Devis["/devis<br/>(4 étapes)"]
+    Simulateur["/simulateur<br/>(iframe Three.js)"]
+    Legal["Légal"]
+    ML["/mentions-legales"]
+    PC["/politique-confidentialite"]
+    CK["/cookies"]
+
+    Home --> Solutions
+    Home --> Realisations
+    Home --> Apropos
+    Home --> Contact
+    Home --> Devis
+    Home --> Simulateur
+    Solutions --> PLV
+    Solutions --> Pack
+    Solutions --> Print
+    Solutions --> Simulateur
+    Home --> Legal
+    Legal --> ML
+    Legal --> PC
+    Legal --> CK
+    Home -.sitemap seul.-> Equipe
+    Home -.sitemap seul.-> Blog
+
+    classDef orphan fill:#fff3cd,stroke:#f0ad4e,color:#664d03;
+    classDef critical fill:#f8d7da,stroke:#dc3545,color:#58151c;
+    class Equipe,Blog orphan;
+```
+
+---
+
+## Univers visuel du site
+
+<table>
+<tr>
+<td align="center"><img src="assets/blueprint/frame-etuis.webp" alt="Étuis" width="220"/><br/><sub>Étuis pharma</sub></td>
+<td align="center"><img src="assets/blueprint/frame-plv.webp" alt="PLV" width="220"/><br/><sub>PLV</sub></td>
+<td align="center"><img src="assets/blueprint/frame-packaging.webp" alt="Packaging" width="220"/><br/><sub>Packaging premium</sub></td>
+<td align="center"><img src="assets/blueprint/frame-print.webp" alt="Print" width="220"/><br/><sub>Print & finition</sub></td>
+</tr>
+</table>
+
+Échantillon vitrine réalisations :
+
+<table>
+<tr>
+<td><img src="assets/blueprint/vitrine-2.png" alt="Vitrine 2" width="180"/></td>
+<td><img src="assets/blueprint/vitrine-5.png" alt="Vitrine 5" width="180"/></td>
+<td><img src="assets/blueprint/vitrine-10.png" alt="Vitrine 10" width="180"/></td>
+<td><img src="assets/blueprint/vitrine-14.png" alt="Vitrine 14" width="180"/></td>
+</tr>
+</table>
+
 ---
 
 ## Stack technique
@@ -39,6 +116,12 @@ Relevé effectué le 23 avril 2026 depuis les pages publiques.
 ---
 
 ## Page d'accueil — 11 sections
+
+<p align="center">
+  <img src="assets/blueprint/sf-product-packaging.png" alt="Packaging premium" width="480"/>
+  <img src="assets/blueprint/sf-product-print.png" alt="Impression et finition" width="480"/>
+</p>
+
 
 1. **Hero** — H1 "MULTIPÔLES", intro G.I.E. depuis 1995, thématiques étuis/PLV/packaging. CTA "Découvrir nos solutions".
 2. **Packaging éco & premium** — cible cosmétique haut de gamme (pelliculage, gaufrage, dorure). Valeurs : naturalité, élégance, responsabilité.
