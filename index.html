@@ -1044,9 +1044,58 @@ body[data-ui-theme="day"] .viewport::after {
 .ia-card-title{font-size:13px;font-weight:800;color:#fff;margin-bottom:4px;}
 .ia-card-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:6px;}
 .ia-card-desc{font-size:11px;color:rgba(255,255,255,0.75);font-weight:600;line-height:1.4;}
+
+/* ═══════════════════════════════════════════════════════ */
+/* MOBILE OVERRIDES — pleine page, UI minimale, plv centrée */
+/* ═══════════════════════════════════════════════════════ */
+#mobile-dock { display: none; }
+@media (max-width: 768px) {
+  body { overflow: hidden !important; }
+  .app { height: 100vh !important; min-height: 100vh !important; }
+  header { display: none !important; }
+  .controls-left, .controls-right, .params-panel, .hint-bar,
+  #themeMenu, .theme-wrap, .ia-proposals, #toast { display: none !important; }
+  .main { padding: 0 !important; gap: 0 !important; flex-direction: column !important; }
+  .viewport {
+    flex: 1 1 100% !important; min-height: 100vh !important;
+    height: 100vh !important; width: 100vw !important;
+    border-radius: 0 !important; border: none !important;
+    margin: 0 !important;
+  }
+  #mobile-dock {
+    display: flex !important;
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    gap: 6px; z-index: 1000; align-items: center;
+    background: rgba(255,255,255,0.92); backdrop-filter: blur(10px);
+    padding: 6px 8px; border-radius: 9999px;
+    box-shadow: 0 6px 20px rgba(0,11,88,0.18);
+    font-family: 'Rajdhani', system-ui, sans-serif;
+    border: 1px solid rgba(0,11,88,0.08);
+  }
+  #mobile-dock .group { display: flex; align-items: center; gap: 4px; }
+  #mobile-dock .sep { width: 1px; height: 28px; background: rgba(0,11,88,0.12); margin: 0 4px; }
+  #mobile-dock button {
+    width: 38px; height: 38px; border-radius: 9999px;
+    border: 1px solid rgba(0,11,88,0.15); background: white;
+    color: #000B58; font-size: 20px; font-weight: 700;
+    cursor: pointer; padding: 0; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.1s;
+  }
+  #mobile-dock button:active { transform: scale(0.92); }
+  #mobile-dock .label {
+    font-size: 9px; color: #000B58; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 0 2px;
+  }
+  #mobile-dock .val {
+    min-width: 18px; text-align: center; font-size: 14px; font-weight: 800;
+    color: #000B58; padding: 0 2px;
+  }
+}
 </style>
 </head>
-<body>
+<body data-ui-theme="day" data-visual-preset="light_navy">
 
 <div class="app">
   <header>
@@ -2479,6 +2528,135 @@ window.removeFile = function(index) {
   uploadedFiles.splice(index, 1);
   setFileListContent();
 };
+
+// ═══════════════════════════════════════════════════════
+// MOBILE PATCH — fit caméra à la PLV + dock minimal
+// ═══════════════════════════════════════════════════════
+(function mobilePatch() {
+  const isMobile = () => window.innerWidth <= 768;
+  const isPortrait = () => window.innerHeight > window.innerWidth;
+
+  function fitCameraToPLV() {
+    if (!plvGroup || plvGroup.children.length === 0) return;
+    const box = new THREE.Box3().setFromObject(plvGroup);
+    if (box.isEmpty()) return;
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    const aspect = window.innerWidth / window.innerHeight;
+    const margin = isMobile() ? 1.18 : 1.35;
+
+    if (isMobile() && isPortrait()) {
+      camera.fov = 42;
+    } else if (isMobile()) {
+      camera.fov = 38;
+    } else {
+      camera.fov = 32;
+    }
+    camera.aspect = aspect;
+
+    const fovRad = camera.fov * Math.PI / 180;
+    const distV = (size.y / 2) / Math.tan(fovRad / 2);
+    const distH = (size.x / 2) / Math.tan(fovRad / 2) / Math.max(0.4, aspect);
+    const dist = Math.max(distV, distH) * margin;
+
+    const dir = new THREE.Vector3(0.5, 0.18, 1).normalize();
+    camera.position.copy(center).add(dir.multiplyScalar(dist));
+    camera.updateProjectionMatrix();
+    controls.target.copy(center);
+    controls.minDistance = dist * 0.4;
+    controls.maxDistance = dist * 3;
+    controls.update();
+  }
+  window.fitCameraToPLV = fitCameraToPLV;
+
+  // Wrap build functions to auto-fit after each rebuild
+  try {
+    const _origBuildPLV = buildPLV;
+    buildPLV = function() {
+      _origBuildPLV.apply(this, arguments);
+      fitCameraToPLV();
+    };
+  } catch(e) {}
+  try {
+    if (typeof buildPackaging === 'function') {
+      const _origBuildPack = buildPackaging;
+      buildPackaging = function() {
+        _origBuildPack.apply(this, arguments);
+        fitCameraToPLV();
+      };
+    }
+  } catch(e) {}
+
+  // Resize handler
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(fitCameraToPLV, 80);
+  });
+  window.addEventListener('orientationchange', () => {
+    setTimeout(fitCameraToPLV, 200);
+  });
+
+  // Initial fit (delayed to ensure first build is done)
+  setTimeout(fitCameraToPLV, 100);
+  setTimeout(fitCameraToPLV, 400);
+
+  // Mobile dock — inject HTML + wire buttons
+  if (!document.getElementById('mobile-dock')) {
+    const dock = document.createElement('div');
+    dock.id = 'mobile-dock';
+    dock.innerHTML = ''
+      + '<div class="group">'
+      +   '<span class="label">Étag</span>'
+      +   '<button data-act="shelf-minus" aria-label="Moins étagère">−</button>'
+      +   '<span class="val" id="m-shelves">' + (typeof S !== "undefined" ? S.nbShelves : 4) + '</span>'
+      +   '<button data-act="shelf-plus" aria-label="Plus étagère">+</button>'
+      + '</div>'
+      + '<div class="sep"></div>'
+      + '<div class="group">'
+      +   '<span class="label">Facing</span>'
+      +   '<button data-act="facing-minus" aria-label="Moins facing">−</button>'
+      +   '<span class="val" id="m-facing">' + (typeof S !== "undefined" ? S.facing : 4) + '</span>'
+      +   '<button data-act="facing-plus" aria-label="Plus facing">+</button>'
+      + '</div>'
+      + '<div class="sep"></div>'
+      + '<div class="group">'
+      +   '<span class="label">Prof</span>'
+      +   '<button data-act="depth-minus" aria-label="Moins profondeur">−</button>'
+      +   '<span class="val" id="m-depth">' + (typeof S !== "undefined" ? S.prodDepth : 4) + '</span>'
+      +   '<button data-act="depth-plus" aria-label="Plus profondeur">+</button>'
+      + '</div>';
+    document.body.appendChild(dock);
+
+    function syncDock() {
+      const sv = document.getElementById('m-shelves');
+      const fv = document.getElementById('m-facing');
+      const dv = document.getElementById('m-depth');
+      if (sv && typeof S !== 'undefined') sv.textContent = S.nbShelves;
+      if (fv && typeof S !== 'undefined') fv.textContent = S.facing;
+      if (dv && typeof S !== 'undefined') dv.textContent = S.prodDepth;
+    }
+
+    dock.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const act = btn.dataset.act;
+      if (typeof S === 'undefined') return;
+      if (act === 'shelf-plus' && S.nbShelves < 8) S.nbShelves++;
+      else if (act === 'shelf-minus' && S.nbShelves > 1) S.nbShelves--;
+      else if (act === 'facing-plus' && S.facing < 12) S.facing++;
+      else if (act === 'facing-minus' && S.facing > 1) S.facing--;
+      else if (act === 'depth-plus' && S.prodDepth < 6) S.prodDepth++;
+      else if (act === 'depth-minus' && S.prodDepth > 1) S.prodDepth--;
+      else return;
+      if (typeof rebuildPLV === 'function') rebuildPLV();
+      syncDock();
+    });
+
+    setTimeout(syncDock, 50);
+  }
+})();
 </script>
 </body>
 </html>
