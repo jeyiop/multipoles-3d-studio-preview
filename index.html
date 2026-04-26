@@ -1064,33 +1064,38 @@ body[data-ui-theme="day"] .viewport::after {
   }
   #mobile-dock {
     display: flex !important;
-    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-    gap: 6px; z-index: 1000; align-items: center;
-    background: rgba(255,255,255,0.92); backdrop-filter: blur(10px);
-    padding: 6px 8px; border-radius: 9999px;
-    box-shadow: 0 6px 20px rgba(0,11,88,0.18);
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    gap: 6px; z-index: 1000; align-items: stretch;
+    background: rgba(255,255,255,0.94); backdrop-filter: blur(10px);
+    padding: 6px 10px; border-radius: 18px;
+    box-shadow: 0 6px 22px rgba(0,11,88,0.22);
     font-family: 'Rajdhani', system-ui, sans-serif;
     border: 1px solid rgba(0,11,88,0.08);
+    max-width: calc(100vw - 24px);
   }
-  #mobile-dock .group { display: flex; align-items: center; gap: 4px; }
-  #mobile-dock .sep { width: 1px; height: 28px; background: rgba(0,11,88,0.12); margin: 0 4px; }
+  #mobile-dock .group {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px; padding: 2px 4px;
+  }
+  #mobile-dock .row { display: flex; align-items: center; gap: 4px; }
+  #mobile-dock .sep { width: 1px; background: rgba(0,11,88,0.12); margin: 4px 2px; }
   #mobile-dock button {
-    width: 38px; height: 38px; border-radius: 9999px;
-    border: 1px solid rgba(0,11,88,0.15); background: white;
-    color: #000B58; font-size: 20px; font-weight: 700;
+    width: 32px; height: 32px; border-radius: 9999px;
+    border: 1px solid rgba(0,11,88,0.18); background: white;
+    color: #000B58; font-size: 18px; font-weight: 700;
     cursor: pointer; padding: 0; line-height: 1;
     display: flex; align-items: center; justify-content: center;
-    transition: transform 0.1s;
+    transition: transform 0.1s, background 0.15s;
   }
-  #mobile-dock button:active { transform: scale(0.92); }
+  #mobile-dock button:active { transform: scale(0.9); background: #f2f4f9; }
   #mobile-dock .label {
-    font-size: 9px; color: #000B58; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em;
-    padding: 0 2px;
+    font-size: 8.5px; color: #000B58; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    line-height: 1; opacity: 0.78;
   }
   #mobile-dock .val {
     min-width: 18px; text-align: center; font-size: 14px; font-weight: 800;
-    color: #000B58; padding: 0 2px;
+    color: #000B58;
   }
 }
 </style>
@@ -2608,24 +2613,30 @@ window.removeFile = function(index) {
     dock.id = 'mobile-dock';
     dock.innerHTML = ''
       + '<div class="group">'
-      +   '<span class="label">Étag</span>'
-      +   '<button data-act="shelf-minus" aria-label="Moins étagère">−</button>'
-      +   '<span class="val" id="m-shelves">' + (typeof S !== "undefined" ? S.nbShelves : 4) + '</span>'
-      +   '<button data-act="shelf-plus" aria-label="Plus étagère">+</button>'
+      +   '<span class="label">Étagères</span>'
+      +   '<div class="row">'
+      +     '<button data-act="shelf-minus" aria-label="Moins étagère">−</button>'
+      +     '<span class="val" id="m-shelves">' + (typeof S !== "undefined" ? S.nbShelves : 4) + '</span>'
+      +     '<button data-act="shelf-plus" aria-label="Plus étagère">+</button>'
+      +   '</div>'
       + '</div>'
       + '<div class="sep"></div>'
       + '<div class="group">'
       +   '<span class="label">Facing</span>'
-      +   '<button data-act="facing-minus" aria-label="Moins facing">−</button>'
-      +   '<span class="val" id="m-facing">' + (typeof S !== "undefined" ? S.facing : 4) + '</span>'
-      +   '<button data-act="facing-plus" aria-label="Plus facing">+</button>'
+      +   '<div class="row">'
+      +     '<button data-act="facing-minus" aria-label="Moins facing">−</button>'
+      +     '<span class="val" id="m-facing">' + (typeof S !== "undefined" ? S.facing : 4) + '</span>'
+      +     '<button data-act="facing-plus" aria-label="Plus facing">+</button>'
+      +   '</div>'
       + '</div>'
       + '<div class="sep"></div>'
       + '<div class="group">'
-      +   '<span class="label">Prof</span>'
-      +   '<button data-act="depth-minus" aria-label="Moins profondeur">−</button>'
-      +   '<span class="val" id="m-depth">' + (typeof S !== "undefined" ? S.prodDepth : 4) + '</span>'
-      +   '<button data-act="depth-plus" aria-label="Plus profondeur">+</button>'
+      +   '<span class="label">Profondeur</span>'
+      +   '<div class="row">'
+      +     '<button data-act="depth-minus" aria-label="Moins profondeur">−</button>'
+      +     '<span class="val" id="m-depth">' + (typeof S !== "undefined" ? S.prodDepth : 4) + '</span>'
+      +     '<button data-act="depth-plus" aria-label="Plus profondeur">+</button>'
+      +   '</div>'
       + '</div>';
     document.body.appendChild(dock);
 
