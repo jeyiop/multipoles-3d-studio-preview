@@ -2017,19 +2017,33 @@ function buildPLV() {
   sBack.castShadow = true; addEdges(sBack, cre, 0.6); shelvesGroup.add(sBack);
 
   // Parois latérales en trapèze (évasées vers le haut : front rentre vers le dos en montant)
-  for (const s of [-1, 1]) {
+  // Shape XY : X = profondeur (back→front : -D/2 → D/2), Y = hauteur (0 → shH)
+  // Bottom-back, bottom-front, top-front (rentré), top-back, fermé
+  function makeSideShape() {
     const shape = new THREE.Shape();
-    shape.moveTo(-D/2, 0);                      // bottom-back
-    shape.lineTo(D/2 - t, 0);                   // bottom-front
-    shape.lineTo(-D/2 + D * 0.35, shH);         // top-front (rentré)
-    shape.lineTo(-D/2, shH);                    // top-back
+    shape.moveTo(-D/2 + t/2, 0);                // bottom-back
+    shape.lineTo(D/2 - t/2, 0);                 // bottom-front
+    shape.lineTo(-D/2 + D * 0.32, shH);         // top-front (rentré 32% de la profondeur)
+    shape.lineTo(-D/2 + t/2, shH);              // top-back
     shape.closePath();
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: false });
+    return shape;
+  }
+  // Right side wall
+  {
+    const geo = new THREE.ExtrudeGeometry(makeSideShape(), { depth: t, bevelEnabled: false });
     const wall = new THREE.Mesh(geo, mat());
-    wall.rotation.y = Math.PI / 2;
-    wall.position.set(s * (W/2 - t/2 + (s > 0 ? t : 0)), 0, 0);
-    if (s > 0) wall.position.x = W/2 - t/2;
-    if (s < 0) wall.position.x = -W/2 + t/2;
+    wall.rotation.y = -Math.PI / 2;             // shape X axis → world +Z, extrude +Z → world +X
+    wall.position.set(W/2 - t, 0, 0);
+    wall.castShadow = true;
+    addEdges(wall, cre, 0.55);
+    shelvesGroup.add(wall);
+  }
+  // Left side wall
+  {
+    const geo = new THREE.ExtrudeGeometry(makeSideShape(), { depth: t, bevelEnabled: false });
+    const wall = new THREE.Mesh(geo, mat());
+    wall.rotation.y = -Math.PI / 2;
+    wall.position.set(-W/2, 0, 0);
     wall.castShadow = true;
     addEdges(wall, cre, 0.55);
     shelvesGroup.add(wall);
