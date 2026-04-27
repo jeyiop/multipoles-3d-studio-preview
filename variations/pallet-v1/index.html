@@ -1,0 +1,2808 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multipoles 3D Studio — PLV & Packaging</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #F8F9FA; --surface: #00062B; --border: rgba(0,255,255,0.15);
+  --primary: #E0E0FF; --accent: #00FFFF; --accent-light: rgba(0,255,255,0.08);
+  --accent2: #FF00FF; --accent2-light: rgba(255,0,255,0.08);
+  --neon-orange: #FF6B00; --neon-pink: #FF2D7C; --neon-green: #39FF14;
+  --muted: #ffffff; --pharma: #00FFFF;
+  --kraft: #1A1A2E; --kraft-dark: #0D0D1A;
+  --font: 'Rajdhani', system-ui, -apple-system, sans-serif;
+  --font-display: 'Orbitron', monospace;
+  --glow-cyan: 0 0 8px rgba(0,255,255,0.4), 0 0 20px rgba(0,255,255,0.15);
+  --glow-magenta: 0 0 8px rgba(255,0,255,0.4), 0 0 20px rgba(255,0,255,0.15);
+  --glow-orange: 0 0 8px rgba(255,107,0,0.4), 0 0 20px rgba(255,107,0,0.15);
+}
+
+
+/* Small labels: white + bold */
+.ctrl-title, .stepper-label, .slider-label, .param-label,
+.slider-value .unit, .synth-detail, .synth-prodlabel,
+.check-item, .pack-synth-sub, .param-header {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+body { font-family: var(--font); background: var(--bg); color: var(--primary);
+       -webkit-font-smoothing: antialiased; overflow: hidden; height: 100vh;
+       font-weight: 700; font-size: 105%; }
+
+.app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ── HEADER ── */
+header { position: relative; z-index: 200; display: flex; align-items: center; justify-content: space-between;
+         padding: 8px 20px; border-bottom: 1px solid var(--border);
+         background: rgba(6,6,14,0.95); backdrop-filter: blur(20px);
+         box-shadow: 0 1px 30px rgba(0,255,255,0.05); }
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-icon { width: 32px; height: 32px; border-radius: 4px;
+             background: transparent; border: 1.5px solid var(--accent);
+             display: flex; align-items: center; justify-content: center;
+             color: var(--accent); font-weight: 800; font-size: 15px;
+             font-family: var(--font-display);
+             box-shadow: var(--glow-cyan);
+             text-shadow: 0 0 8px var(--accent); }
+.logo-text h1 { font-size: 15px; font-weight: 700; letter-spacing: 1px;
+                 font-family: var(--font-display); color: var(--accent);
+                 text-shadow: 0 0 12px rgba(0,255,255,0.5); }
+.logo-text p { font-size: 9px; color: var(--accent2); text-transform: uppercase; letter-spacing: 3px;
+               text-shadow: 0 0 8px rgba(255,0,255,0.4); }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.theme-wrap { position: relative; }
+.btn-themes {
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  background: transparent;
+  font-family: var(--font-display);
+  transition: all 0.15s;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+.btn-themes:hover, .btn-themes.open {
+  border-color: var(--accent); color: var(--accent);
+}
+.theme-menu {
+  position: absolute; right: 0; top: 100%; width: 280px; margin-top: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px; box-shadow: 0 12px 24px rgba(0,0,0,0.35); z-index: 99999; display: none;
+}
+.theme-menu.open { display: block; }
+.theme-wrap { position: relative; z-index: 99999; }
+.theme-menu.open { display: block; }
+.btn-params { padding: 5px 14px; border: 1px solid var(--border); border-radius: 2px;
+              font-size: 11px; font-weight: 600; cursor: pointer; background: transparent;
+              font-family: var(--font); transition: all 0.15s; color: var(--primary);
+              text-transform: uppercase; letter-spacing: 1px; }
+.btn-params:hover { border-color: var(--accent); color: var(--accent);
+                    box-shadow: var(--glow-cyan); }
+.btn-params.active { background: rgba(0,255,255,0.1); color: var(--accent); border-color: var(--accent);
+                     box-shadow: var(--glow-cyan); }
+
+.main { display: flex; flex: 1; overflow: hidden; position: relative; z-index: 1; }
+
+/* ── PANELS ── */
+.controls-left { position: absolute; left: 16px; top: 16px; z-index: 10;
+  display: flex; flex-direction: column; gap: 10px; width: 260px;
+  max-height: calc(100% - 32px); overflow-y: auto; scrollbar-width: thin; }
+.controls-left::-webkit-scrollbar { width: 3px; }
+.controls-left::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.2); border-radius: 2px; }
+.controls-right { position: absolute; right: 16px; top: 16px; z-index: 10;
+  display: flex; flex-direction: column; gap: 10px; width: 260px;
+  max-height: calc(100% - 32px); overflow-y: auto; scrollbar-width: thin; }
+.controls-right::-webkit-scrollbar { width: 3px; }
+.controls-right::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.2); border-radius: 2px; }
+
+.ctrl-card { background: var(--surface); backdrop-filter: blur(20px);
+  border-radius: 2px; padding: 14px 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(0,255,255,0.05); }
+.ctrl-title { font-size: 10px; text-transform: uppercase; letter-spacing: 3px;
+  color: var(--accent); font-weight: 600; margin-bottom: 10px;
+  font-family: var(--font-display);
+  text-shadow: 0 0 6px rgba(0,255,255,0.3); }
+
+/* Mode toggle */
+.mode-toggle { display: flex; gap: 8px; }
+.mode-btn { flex: 1; padding: 14px 8px; border-radius: 2px; border: 1px solid var(--border);
+  background: transparent; cursor: pointer; text-align: center; transition: all 0.2s;
+  font-family: var(--font); color: var(--primary); }
+.mode-btn:hover:not(.active) { border-color: var(--accent2); color: var(--accent2);
+  box-shadow: var(--glow-magenta); }
+.mode-btn.active { background: rgba(255,0,255,0.1); color: var(--accent2); border-color: var(--accent2);
+  box-shadow: var(--glow-magenta); }
+.mode-icon { font-size: 23px; display: block; margin-bottom: 3px; }
+.mode-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+  font-family: var(--font-display); }
+
+/* Synthesis card (cyan neon) */
+.synthesis-card { background: rgba(0,255,255,0.04);
+  border: 1px solid rgba(0,255,255,0.3); color: white; text-align: center; padding: 18px 16px;
+  box-shadow: 0 0 30px rgba(0,255,255,0.08), inset 0 0 30px rgba(0,255,255,0.03); }
+.synth-label { font-size: 14px; font-weight: 800; letter-spacing: 3px;
+  text-transform: uppercase; margin-bottom: 14px; font-family: var(--font-display);
+  color: var(--accent); text-shadow: 0 0 15px rgba(0,255,255,0.6); }
+.synth-number { font-size: 49px; font-weight: 900; line-height: 1; letter-spacing: -2px;
+  font-family: var(--font-display); color: var(--accent);
+  text-shadow: 0 0 30px rgba(0,255,255,0.5), 0 0 60px rgba(0,255,255,0.2); }
+.synth-prodlabel { font-size: 12px; font-weight: 500; opacity: 0.7; margin-top: 4px;
+  color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+.synth-dims { font-size: 14px; font-weight: 600; margin-top: 12px; opacity: 0.9;
+  font-variant-numeric: tabular-nums; letter-spacing: 1px; color: var(--primary); }
+.synth-detail { font-size: 10px; opacity: 0.5; margin-top: 6px; font-variant-numeric: tabular-nums;
+  color: var(--muted); letter-spacing: 1px; }
+
+/* Stepper */
+.stepper { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.stepper:last-child { margin-bottom: 0; }
+.stepper-label { font-size: 12px; color: var(--muted); font-weight: 500; letter-spacing: 0.5px; }
+.stepper-controls { display: flex; align-items: center; }
+.stepper-btn { width: 32px; height: 32px; border: 1px solid var(--border); background: transparent;
+  font-size: 17px; font-weight: 600; cursor: pointer; color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s; font-family: var(--font); }
+.stepper-btn:first-child { border-radius: 2px 0 0 2px; }
+.stepper-btn:last-child { border-radius: 0 2px 2px 0; }
+.stepper-btn:hover { background: rgba(0,255,255,0.1); border-color: var(--accent);
+  box-shadow: var(--glow-cyan); }
+.stepper-btn:active { background: rgba(0,255,255,0.2); color: white; }
+.stepper-val { min-width: 52px; height: 32px; display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  background: rgba(0,255,255,0.03); color: var(--accent);
+  font-family: var(--font-display); text-shadow: 0 0 8px rgba(0,255,255,0.3); }
+
+/* Slider field */
+.slider-field { margin-bottom: 10px; }
+.slider-field:last-child { margin-bottom: 0; }
+.slider-header { display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; margin-bottom: 5px; }
+.slider-label { color: var(--muted); font-weight: 500; letter-spacing: 0.5px; }
+.slider-value { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--accent);
+  font-family: var(--font-display); text-shadow: 0 0 6px rgba(0,255,255,0.3); }
+.slider-value .unit { color: var(--muted); font-weight: 400; margin-left: 2px; font-size: 10px;
+  font-family: var(--font); text-shadow: none; }
+
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 2px;
+  border-radius: 0; background: rgba(0,255,255,0.15); outline: none; cursor: pointer; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 0; background: var(--accent); border: none;
+  box-shadow: 0 0 12px rgba(0,255,255,0.6), 0 0 4px rgba(0,255,255,0.8); cursor: pointer;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+input[type="range"]::-moz-range-thumb { width: 14px; height: 14px;
+  border-radius: 0; background: var(--accent); border: none;
+  box-shadow: 0 0 12px rgba(0,255,255,0.6), 0 0 4px rgba(0,255,255,0.8); cursor: pointer; }
+
+/* Personnaliser button */
+.btn-perso { width: 100%; padding: 11px 14px; border-radius: 8px; border: none;
+  background: #D97706; cursor: pointer; font-family: var(--font);
+  font-size: 13px; font-weight: 800; color: #ffffff; transition: all 0.2s; text-align: center;
+  text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 14px rgba(217,119,6,0.45); }
+.btn-perso:hover { background: #B45309; box-shadow: 0 6px 20px rgba(217,119,6,0.6); }
+
+/* Perso panel (expandable) */
+.perso-panel { display: none; background: #1a0c00 !important; border-color: rgba(217,119,6,0.4) !important; }
+.perso-panel.open { display: block; }
+.perso-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.preset-btn { padding: 5px 10px; border: 1px solid var(--border); border-radius: 2px;
+  font-size: 10px; font-weight: 600; cursor: pointer; background: transparent;
+  font-family: var(--font); transition: all 0.15s; color: var(--primary);
+  text-transform: uppercase; letter-spacing: 0.5px; }
+.preset-btn:hover { border-color: var(--accent); color: var(--accent);
+  box-shadow: var(--glow-cyan); }
+.preset-btn.active { background: rgba(0,255,255,0.1); color: var(--accent); border-color: var(--accent);
+  box-shadow: var(--glow-cyan); }
+
+/* Option buttons (radio style) */
+.option-group { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.option-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 2px;
+  font-size: 11px; font-weight: 600; cursor: pointer; background: transparent;
+  font-family: var(--font); transition: all 0.15s; color: var(--primary);
+  text-transform: uppercase; letter-spacing: 0.5px; }
+.option-btn:hover { border-color: var(--neon-orange); color: var(--neon-orange);
+  box-shadow: var(--glow-orange); }
+.option-btn.active { background: rgba(255,107,0,0.1); color: var(--neon-orange);
+  border-color: var(--neon-orange); box-shadow: var(--glow-orange); }
+
+/* Tags */
+.tags-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { padding: 5px 10px; border-radius: 2px; border: 1px solid var(--border);
+  font-size: 10px; font-weight: 600; cursor: pointer; font-family: var(--font);
+  transition: all 0.15s; background: transparent; color: var(--primary);
+  text-transform: uppercase; letter-spacing: 0.5px; }
+.tag:hover { border-color: var(--accent2); }
+.tag.active { background: rgba(255,0,255,0.1); color: var(--accent2);
+  border-color: var(--accent2); box-shadow: var(--glow-magenta); }
+
+/* Checkboxes */
+.check-list { display: flex; flex-direction: column; gap: 6px; }
+.check-item { display: flex; align-items: center; gap: 8px; font-size: 12px;
+  cursor: pointer; color: var(--muted); transition: color 0.15s; }
+.check-item:hover { color: var(--neon-green); }
+.check-box { width: 18px; height: 18px; border: 1px solid var(--border); border-radius: 0;
+  display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+  font-size: 11px; flex-shrink: 0; }
+.check-item.active .check-box { background: rgba(57,255,20,0.15); border-color: var(--neon-green);
+  color: var(--neon-green); box-shadow: 0 0 8px rgba(57,255,20,0.3); }
+.check-item.active { color: var(--neon-green); }
+
+/* Color count */
+.color-btns { display: flex; gap: 4px; }
+.color-btn { width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 2px;
+  font-size: 13px; font-weight: 700; cursor: pointer; background: transparent;
+  font-family: var(--font-display); transition: all 0.15s; display: flex;
+  align-items: center; justify-content: center; color: var(--primary); }
+.color-btn:hover { border-color: var(--accent); }
+.color-btn.active { background: rgba(0,255,255,0.1); color: var(--accent);
+  border-color: var(--accent); box-shadow: var(--glow-cyan); }
+
+/* Pack synthesis card (magenta neon) */
+.pack-synth { background: rgba(255,0,255,0.04);
+  border: 1px solid rgba(255,0,255,0.3); color: white; text-align: center; padding: 16px;
+  box-shadow: 0 0 30px rgba(255,0,255,0.08), inset 0 0 30px rgba(255,0,255,0.03); }
+.pack-synth .synth-label { font-size: 14px; margin-bottom: 10px; color: var(--accent2);
+  text-shadow: 0 0 15px rgba(255,0,255,0.6); font-family: var(--font-display); letter-spacing: 3px; }
+.pack-synth-dims { font-size: 23px; font-weight: 800; letter-spacing: 1px;
+  font-family: var(--font-display); color: var(--accent2);
+  text-shadow: 0 0 20px rgba(255,0,255,0.5); }
+.pack-synth-sub { font-size: 11px; opacity: 0.65; margin-top: 6px; color: var(--primary);
+  letter-spacing: 1px; }
+
+/* Toast notification */
+.toast { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: rgba(12,12,22,0.95); color: var(--accent); padding: 10px 20px; border-radius: 2px;
+  font-size: 12px; font-weight: 500; opacity: 0; transition: all 0.3s ease; z-index: 100;
+  max-width: 500px; text-align: center; pointer-events: none; font-family: var(--font);
+  border: 1px solid var(--accent); box-shadow: var(--glow-cyan);
+  text-shadow: 0 0 8px rgba(0,255,255,0.3); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Params panel */
+.params-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 300px;
+  background: rgba(8,8,18,0.97); border-left: 1px solid var(--border);
+  overflow-y: auto; z-index: 20; padding: 16px;
+  transform: translateX(0); transition: transform 0.3s ease;
+  backdrop-filter: blur(20px); }
+.params-panel.open { transform: translateX(0); }
+.params-panel::-webkit-scrollbar { width: 4px; }
+.params-panel::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.2); border-radius: 2px; }
+.param-section { margin-bottom: 16px; }
+.param-title { font-size: 10px; text-transform: uppercase; letter-spacing: 3px;
+  color: var(--accent); font-weight: 600; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-display);
+  text-shadow: 0 0 6px rgba(0,255,255,0.3); }
+.param-title::before { content: ''; width: 3px; height: 12px; border-radius: 0;
+  background: var(--accent); box-shadow: 0 0 8px rgba(0,255,255,0.5); }
+.param-field { margin-bottom: 8px; }
+.param-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+.param-label { color: var(--muted); }
+.param-value { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--accent);
+  font-family: var(--font-display); text-shadow: 0 0 6px rgba(0,255,255,0.3); }
+.param-value .unit { color: var(--muted); font-weight: 400; margin-left: 2px; font-size: 11px;
+  font-family: var(--font); text-shadow: none; }
+.param-close { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px;
+  border-radius: 2px; border: 1px solid rgba(255,45,124,0.3); background: transparent;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 15px; color: var(--neon-pink); transition: all 0.15s; }
+.param-close:hover { background: rgba(255,45,124,0.15); border-color: var(--neon-pink);
+  box-shadow: 0 0 10px rgba(255,45,124,0.3); }
+
+/* Viewport */
+.viewport { flex: 1; position: relative; background: var(--bg); }
+#canvas3d { width: 100%; height: 100%; display: block; }
+.hint-bar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; color: var(--muted); background: rgba(10,10,15,0.8);
+  padding: 5px 16px; border-radius: 2px; border: 1px solid rgba(0,255,255,0.1);
+  backdrop-filter: blur(8px); letter-spacing: 1px; }
+
+/* Hidden */
+.hidden { display: none !important; }
+
+/* ── SCAN LINE EFFECT ── */
+.viewport::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,255,255,0.008) 2px,
+    rgba(0,255,255,0.008) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── GRID PATTERN ON VIEWPORT BG ── */
+.viewport::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    linear-gradient(rgba(0,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,255,0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── CYBER NEON REDESIGN (photo-inspired) ── */
+:root {
+  --bg: #02040b;
+  --surface: linear-gradient(165deg, rgba(9, 16, 35, 0.88), rgba(5, 10, 24, 0.86));
+  --border: rgba(98, 254, 255, 0.26);
+  --primary: #defbff;
+  --muted: #ffffff;
+  --accent: #62feff;
+  --accent2: #ff7dff;
+  --accent-light: rgba(98, 254, 255, 0.12);
+  --accent2-light: rgba(255, 125, 255, 0.14);
+}
+
+body {
+  background:
+    radial-gradient(700px 360px at 28% 20%, rgba(98, 254, 255, 0.14), transparent 65%),
+    radial-gradient(680px 360px at 72% 30%, rgba(255, 125, 255, 0.11), transparent 68%),
+    #02040b;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 20% 24%, rgba(98, 254, 255, 0.35) 0 1px, transparent 2px),
+    radial-gradient(circle at 68% 40%, rgba(255, 125, 255, 0.32) 0 1px, transparent 2px),
+    radial-gradient(circle at 84% 76%, rgba(255, 255, 255, 0.24) 0 1px, transparent 2px);
+  background-size: 220px 220px, 200px 200px, 260px 260px;
+  opacity: 0.28;
+  z-index: 0;
+  animation: dustDrift 22s linear infinite;
+}
+
+.app, header, .main, .viewport, .controls-left, .controls-right, .params-panel {
+  position: relative;
+  z-index: 1;
+}
+
+/* Keep control panels pinned over the viewport on desktop */
+.controls-left,
+.controls-right {
+  position: absolute;
+  z-index: 12;
+}
+
+header {
+  background: #00062B;
+  border-bottom: 1px solid rgba(98, 254, 255, 0.2);
+  box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+}
+
+.logo-icon {
+  border-color: rgba(98, 254, 255, 0.8);
+  box-shadow: 0 0 10px rgba(98, 254, 255, 0.5), 0 0 28px rgba(98, 254, 255, 0.2);
+}
+
+.logo-text h1 {
+  color: var(--accent);
+  text-shadow: 0 0 15px rgba(98, 254, 255, 0.6);
+}
+
+.logo-text p {
+  color: #ffc5ff;
+  text-shadow: 0 0 10px rgba(255, 125, 255, 0.5);
+}
+
+.ctrl-card,
+.params-panel {
+  background: #00062B;
+  border: 1px solid rgba(98, 254, 255, 0.25);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+}
+
+.ctrl-card {
+  border-radius: 10px;
+  backdrop-filter: blur(14px);
+}
+
+.synthesis-card {
+  background: #00062B;
+  border: 1px solid rgba(98, 254, 255, 0.35);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.pack-synth {
+  background: #00062B;
+  border: 1px solid rgba(255, 125, 255, 0.35);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.mode-btn,
+.option-btn,
+.preset-btn,
+.tag,
+.btn-perso,
+.btn-params,
+.color-btn,
+.stepper-btn {
+  border-radius: 8px;
+}
+
+.mode-btn.active,
+.tag.active {
+  background: rgba(255, 125, 255, 0.13);
+  border-color: rgba(255, 125, 255, 0.8);
+}
+
+.preset-btn.active,
+.color-btn.active,
+.btn-params.active {
+  background: rgba(98, 254, 255, 0.14);
+  border-color: rgba(98, 254, 255, 0.85);
+}
+
+.stepper-val {
+  border-color: rgba(98, 254, 255, 0.25);
+  background: linear-gradient(180deg, rgba(98, 254, 255, 0.09), rgba(98, 254, 255, 0.02));
+}
+
+input[type="range"] {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(98, 254, 255, 0.5), rgba(255, 125, 255, 0.42));
+}
+
+input[type="range"]::-webkit-slider-thumb,
+input[type="range"]::-moz-range-thumb {
+  border-radius: 50%;
+  clip-path: none;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  background: radial-gradient(circle at 35% 35%, #f9ffff, #62feff 65%, #36c9ff 100%);
+}
+
+.viewport {
+  background:
+    radial-gradient(500px 300px at 52% 42%, rgba(98, 254, 255, 0.08), transparent 70%),
+    radial-gradient(500px 300px at 62% 55%, rgba(255, 125, 255, 0.08), transparent 72%),
+    #030610;
+}
+
+.viewport::before {
+  background-image:
+    linear-gradient(rgba(98, 254, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(98, 254, 255, 0.07) 1px, transparent 1px);
+  background-size: 46px 46px;
+}
+
+.viewport::after {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(98, 254, 255, 0.015) 2px,
+    rgba(98, 254, 255, 0.015) 4px
+  );
+}
+
+.hint-bar {
+  border-radius: 999px;
+  border-color: rgba(98, 254, 255, 0.22);
+  background: rgba(2, 8, 22, 0.8);
+}
+
+.style-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.style-preset {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--primary);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  cursor: pointer;
+}
+.style-preset.active {
+  border-color: rgba(200,214,232,0.7);
+  background: rgba(200,214,232,0.12);
+}
+.style-card { order: -1; }
+
+/* Studio neutre: same pro menu/typography treatment, keep palette */
+body[data-visual-preset="neutral"] header {
+  background: linear-gradient(90deg, rgba(16, 23, 35, 0.98), rgba(14, 21, 33, 0.98));
+  border-bottom-color: rgba(200, 214, 232, 0.2);
+  box-shadow: 0 8px 18px rgba(5, 10, 20, 0.45);
+}
+body[data-visual-preset="neutral"] .logo-icon {
+  border-width: 1.6px;
+  box-shadow: none;
+  text-shadow: none;
+}
+body[data-visual-preset="neutral"] .logo-text h1,
+body[data-visual-preset="neutral"] .logo-text p {
+  text-shadow: none;
+}
+body[data-visual-preset="neutral"] .ctrl-card,
+body[data-visual-preset="neutral"] .params-panel {
+  border-color: rgba(200, 214, 232, 0.24);
+  box-shadow: 0 8px 20px rgba(5, 10, 20, 0.36), 0 0 0 1px rgba(200, 214, 232, 0.07) inset;
+}
+body[data-visual-preset="neutral"] .ctrl-title {
+  letter-spacing: 2.4px;
+  font-weight: 700;
+}
+body[data-visual-preset="neutral"] .viewport {
+  background:
+    radial-gradient(560px 300px at 50% 42%, rgba(120, 145, 176, 0.08), transparent 72%),
+    #0d1420;
+}
+body[data-visual-preset="neutral"] .viewport::before {
+  background-image:
+    linear-gradient(rgba(138, 159, 186, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(138, 159, 186, 0.06) 1px, transparent 1px);
+}
+body[data-visual-preset="neutral"] .viewport::after {
+  display: none;
+}
+body[data-visual-preset="neutral"] .mode-btn.active,
+body[data-visual-preset="neutral"] .tag.active,
+body[data-visual-preset="neutral"] .preset-btn.active,
+body[data-visual-preset="neutral"] .color-btn.active,
+body[data-visual-preset="neutral"] .btn-params.active {
+  background: rgba(200, 214, 232, 0.12);
+  border-color: rgba(200, 214, 232, 0.8);
+  color: #d7e2f0;
+  box-shadow: none;
+}
+body[data-visual-preset="neutral"] .synthesis-card,
+body[data-visual-preset="neutral"] .pack-synth {
+  background: linear-gradient(180deg, rgba(160, 184, 214, 0.1), rgba(160, 184, 214, 0.03));
+  border-color: rgba(160, 184, 214, 0.28);
+  box-shadow: none;
+}
+body[data-visual-preset="neutral"] .synth-label,
+body[data-visual-preset="neutral"] .pack-synth .synth-label,
+body[data-visual-preset="neutral"] .synth-number,
+body[data-visual-preset="neutral"] .pack-synth-dims {
+  color: #d5e1f0;
+  text-shadow: none;
+}
+body[data-visual-preset="neutral"] input[type="range"] {
+  background: linear-gradient(90deg, rgba(164, 184, 210, 0.55), rgba(122, 141, 170, 0.55));
+}
+body[data-visual-preset="neutral"] input[type="range"]::-webkit-slider-thumb,
+body[data-visual-preset="neutral"] input[type="range"]::-moz-range-thumb {
+  background: #d8e3f3;
+  border: 2px solid rgba(74, 93, 118, 0.8);
+  box-shadow: none;
+}
+
+/* Pharma presets: cleaner clinical language */
+body[data-visual-preset="pharma"] .ctrl-card,
+body[data-visual-preset="pharma"] .params-panel,
+body[data-visual-preset="pharma_clair"] .ctrl-card,
+body[data-visual-preset="pharma_clair"] .params-panel {
+  border-color: rgba(86, 188, 193, 0.26);
+}
+body[data-visual-preset="pharma"] .ctrl-title,
+body[data-visual-preset="pharma_clair"] .ctrl-title {
+  color: #7fd6d3;
+  text-shadow: none;
+}
+body[data-visual-preset="pharma_clair"] header {
+  background: linear-gradient(90deg, rgba(250,255,255,0.99), rgba(250,255,255,0.99));
+  border-bottom-color: rgba(60, 150, 153, 0.18);
+  box-shadow: 0 8px 18px rgba(39, 122, 126, 0.06);
+}
+body[data-visual-preset="pharma_clair"] .logo-icon,
+body[data-visual-preset="pharma_clair"] .logo-text h1 {
+  color: #2a7f82;
+  border-color: rgba(42, 127, 130, 0.5);
+  text-shadow: none;
+}
+body[data-visual-preset="pharma_clair"] .logo-text p {
+  color: #5f8f91;
+  text-shadow: none;
+}
+
+/* ═══ Full White theme — match site principal ═══ */
+body[data-visual-preset="full_white"] header {
+  background: #000B58;
+  border-bottom-color: transparent;
+  box-shadow: 0 2px 12px rgba(0,11,88,0.15);
+}
+body[data-visual-preset="full_white"] .logo-icon {
+  color: #fff; border-color: rgba(255,255,255,0.4); text-shadow: none; box-shadow: none;
+}
+body[data-visual-preset="full_white"] .logo-text h1 { color: #fff; text-shadow: none; }
+body[data-visual-preset="full_white"] .logo-text p { color: rgba(255,255,255,0.7); text-shadow: none; }
+body[data-visual-preset="full_white"] .btn-themes,
+body[data-visual-preset="full_white"] .btn-params { color: #fff; border-color: rgba(255,255,255,0.3); }
+body[data-visual-preset="full_white"] .ctrl-card,
+body[data-visual-preset="full_white"] .params-panel {
+  background: rgba(255,255,255,0.97); border-color: rgba(0,11,88,0.12);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+body[data-visual-preset="full_white"] .ctrl-title,
+body[data-visual-preset="full_white"] .stepper-label,
+body[data-visual-preset="full_white"] .slider-label,
+body[data-visual-preset="full_white"] .param-label,
+body[data-visual-preset="full_white"] .param-header,
+body[data-visual-preset="full_white"] .synth-label,
+body[data-visual-preset="full_white"] .synth-number,
+body[data-visual-preset="full_white"] .synth-detail,
+body[data-visual-preset="full_white"] .synth-prodlabel,
+body[data-visual-preset="full_white"] .pack-synth-dims,
+body[data-visual-preset="full_white"] .check-item,
+body[data-visual-preset="full_white"] .pack-synth-sub { color: #000B58 !important; text-shadow: none !important; }
+body[data-visual-preset="full_white"] .slider-value .unit { color: #000B58 !important; }
+body[data-visual-preset="full_white"] .mode-btn { color: #000B58; border-color: rgba(0,11,88,0.2); background: transparent; }
+body[data-visual-preset="full_white"] .mode-btn.active { background: #000B58; color: #fff; border-color: #000B58; box-shadow: none; }
+body[data-visual-preset="full_white"] .synthesis-card,
+body[data-visual-preset="full_white"] .pack-synth {
+  background: linear-gradient(180deg, rgba(0,11,88,0.04), rgba(0,11,88,0.02));
+  border-color: rgba(0,11,88,0.12); box-shadow: none;
+}
+body[data-visual-preset="full_white"] input[type="range"] { background: rgba(0,11,88,0.15); }
+body[data-visual-preset="full_white"] input[type="range"]::-webkit-slider-thumb,
+body[data-visual-preset="full_white"] input[type="range"]::-moz-range-thumb {
+  background: #FF6B00; border: 2px solid #fff; box-shadow: 0 0 4px rgba(255,107,0,0.4);
+}
+body[data-visual-preset="full_white"] .stepper-btn { color: #000B58; border-color: rgba(0,11,88,0.2); background: transparent; }
+body[data-visual-preset="full_white"] .stepper-val { color: #000B58; }
+body[data-visual-preset="full_white"] .hint-bar { background: rgba(0,11,88,0.06); border-color: rgba(0,11,88,0.12); color: #000B58; }
+body[data-visual-preset="full_white"] .quote-input,
+body[data-visual-preset="full_white"] .quote-textarea,
+body[data-visual-preset="full_white"] .quote-select { background: rgba(0,11,88,0.04); border-color: rgba(0,11,88,0.15); color: #000B58; }
+body[data-visual-preset="full_white"] .quote-input::placeholder,
+body[data-visual-preset="full_white"] .quote-textarea::placeholder { color: rgba(0,11,88,0.45); }
+body[data-visual-preset="full_white"] .btn-devis { background: #000B58; color: #fff; }
+body[data-visual-preset="full_white"] .btn-ia { background: linear-gradient(135deg, #FF6B00, #FF8C38); }
+body[data-visual-preset="full_white"] .tag { color: #000B58; border-color: rgba(0,11,88,0.2); }
+body[data-visual-preset="full_white"] .tag.active { background: #000B58; color: #fff; border-color: #000B58; }
+body[data-visual-preset="full_white"] .preset-btn { color: #000B58; border-color: rgba(0,11,88,0.2); }
+body[data-visual-preset="full_white"] .preset-btn.active { background: rgba(0,11,88,0.08); color: #000B58; border-color: #000B58; }
+body[data-visual-preset="full_white"] .color-btn { border-color: rgba(0,11,88,0.2); }
+body[data-visual-preset="full_white"] .color-btn.active { border-color: #000B58; }
+body[data-visual-preset="full_white"] .style-preset { color: #000B58; border-color: rgba(0,11,88,0.2); }
+body[data-visual-preset="full_white"] .style-preset.active { background: #000B58; color: #fff; border-color: #000B58; }
+
+/* ═══ Navy Glass — glassmorphism ═══ */
+body[data-visual-preset="navy_glass"] header {
+  background: #000B58;
+  border-bottom-color: transparent;
+  box-shadow: 0 2px 12px rgba(0,11,88,0.15);
+}
+body[data-visual-preset="navy_glass"] .logo-icon { color: #fff; border-color: rgba(6,182,212,0.5); text-shadow: none; box-shadow: none; }
+body[data-visual-preset="navy_glass"] .logo-text h1 { color: #fff; text-shadow: none; }
+body[data-visual-preset="navy_glass"] .logo-text p { color: #06B6D4; text-shadow: none; }
+body[data-visual-preset="navy_glass"] .btn-themes,
+body[data-visual-preset="navy_glass"] .btn-params { color: #fff; border-color: rgba(6,182,212,0.4); }
+body[data-visual-preset="navy_glass"] .ctrl-card,
+body[data-visual-preset="navy_glass"] .params-panel {
+  background: rgba(255,255,255,0.82); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-color: rgba(6,182,212,0.18); box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+body[data-visual-preset="navy_glass"] .ctrl-title,
+body[data-visual-preset="navy_glass"] .stepper-label,
+body[data-visual-preset="navy_glass"] .slider-label,
+body[data-visual-preset="navy_glass"] .param-label,
+body[data-visual-preset="navy_glass"] .param-header,
+body[data-visual-preset="navy_glass"] .synth-label,
+body[data-visual-preset="navy_glass"] .synth-number,
+body[data-visual-preset="navy_glass"] .synth-detail,
+body[data-visual-preset="navy_glass"] .synth-prodlabel,
+body[data-visual-preset="navy_glass"] .pack-synth-dims,
+body[data-visual-preset="navy_glass"] .check-item,
+body[data-visual-preset="navy_glass"] .pack-synth-sub { color: #000B58 !important; text-shadow: none !important; }
+body[data-visual-preset="navy_glass"] .slider-value .unit { color: #000B58 !important; }
+body[data-visual-preset="navy_glass"] .mode-btn { color: #000B58; border-color: rgba(6,182,212,0.3); }
+body[data-visual-preset="navy_glass"] .mode-btn.active { background: #06B6D4; color: #fff; border-color: #06B6D4; box-shadow: 0 0 8px rgba(6,182,212,0.3); }
+body[data-visual-preset="navy_glass"] .synthesis-card,
+body[data-visual-preset="navy_glass"] .pack-synth { background: rgba(6,182,212,0.06); border-color: rgba(6,182,212,0.18); box-shadow: none; }
+body[data-visual-preset="navy_glass"] input[type="range"] { background: rgba(6,182,212,0.2); }
+body[data-visual-preset="navy_glass"] input[type="range"]::-webkit-slider-thumb,
+body[data-visual-preset="navy_glass"] input[type="range"]::-moz-range-thumb { background: #06B6D4; border: 2px solid #fff; box-shadow: 0 0 6px rgba(6,182,212,0.4); }
+body[data-visual-preset="navy_glass"] .stepper-btn { color: #000B58; border-color: rgba(6,182,212,0.25); }
+body[data-visual-preset="navy_glass"] .stepper-val { color: #000B58; }
+body[data-visual-preset="navy_glass"] .hint-bar { background: rgba(255,255,255,0.6); border-color: rgba(6,182,212,0.2); color: #000B58; }
+body[data-visual-preset="navy_glass"] .quote-input,
+body[data-visual-preset="navy_glass"] .quote-textarea,
+body[data-visual-preset="navy_glass"] .quote-select { background: rgba(0,11,88,0.04); border-color: rgba(6,182,212,0.2); color: #000B58; }
+body[data-visual-preset="navy_glass"] .quote-input::placeholder,
+body[data-visual-preset="navy_glass"] .quote-textarea::placeholder { color: rgba(0,11,88,0.4); }
+body[data-visual-preset="navy_glass"] .btn-devis { background: #06B6D4; color: #fff; }
+body[data-visual-preset="navy_glass"] .btn-ia { background: linear-gradient(135deg, #000B58, #1a2980); }
+body[data-visual-preset="navy_glass"] .style-preset { color: #000B58; border-color: rgba(6,182,212,0.25); }
+body[data-visual-preset="navy_glass"] .style-preset.active { background: #06B6D4; color: #fff; border-color: #06B6D4; }
+
+/* ═══ Light Navy — bleu clair premium ═══ */
+body[data-visual-preset="light_navy"] header {
+  background: #000B58;
+  border-bottom-color: transparent;
+  box-shadow: 0 2px 12px rgba(0,11,88,0.15);
+}
+body[data-visual-preset="light_navy"] .logo-icon { color: #D4A017; border-color: rgba(212,160,23,0.5); text-shadow: none; box-shadow: none; }
+body[data-visual-preset="light_navy"] .logo-text h1 { color: #fff; text-shadow: none; }
+body[data-visual-preset="light_navy"] .logo-text p { color: #D4A017; text-shadow: none; }
+body[data-visual-preset="light_navy"] .btn-themes,
+body[data-visual-preset="light_navy"] .btn-params { color: #fff; border-color: rgba(212,160,23,0.4); }
+body[data-visual-preset="light_navy"] .ctrl-card,
+body[data-visual-preset="light_navy"] .params-panel {
+  background: #f0f4ff; border-color: rgba(0,11,88,0.1);
+  box-shadow: 0 4px 16px rgba(0,11,88,0.06);
+}
+body[data-visual-preset="light_navy"] .ctrl-title,
+body[data-visual-preset="light_navy"] .stepper-label,
+body[data-visual-preset="light_navy"] .slider-label,
+body[data-visual-preset="light_navy"] .param-label,
+body[data-visual-preset="light_navy"] .param-header,
+body[data-visual-preset="light_navy"] .synth-label,
+body[data-visual-preset="light_navy"] .synth-number,
+body[data-visual-preset="light_navy"] .synth-detail,
+body[data-visual-preset="light_navy"] .synth-prodlabel,
+body[data-visual-preset="light_navy"] .pack-synth-dims,
+body[data-visual-preset="light_navy"] .check-item,
+body[data-visual-preset="light_navy"] .pack-synth-sub { color: #000B58 !important; text-shadow: none !important; }
+body[data-visual-preset="light_navy"] .slider-value .unit { color: #000B58 !important; }
+body[data-visual-preset="light_navy"] .mode-btn { color: #000B58; border-color: rgba(0,11,88,0.15); }
+body[data-visual-preset="light_navy"] .mode-btn.active { background: #000B58; color: #D4A017; border-color: #000B58; box-shadow: none; }
+body[data-visual-preset="light_navy"] .synthesis-card,
+body[data-visual-preset="light_navy"] .pack-synth { background: rgba(0,11,88,0.03); border-color: rgba(0,11,88,0.1); box-shadow: none; }
+body[data-visual-preset="light_navy"] input[type="range"] { background: rgba(0,11,88,0.12); }
+body[data-visual-preset="light_navy"] input[type="range"]::-webkit-slider-thumb,
+body[data-visual-preset="light_navy"] input[type="range"]::-moz-range-thumb { background: #D4A017; border: 2px solid #fff; box-shadow: 0 0 4px rgba(212,160,23,0.4); }
+body[data-visual-preset="light_navy"] .stepper-btn { color: #000B58; border-color: rgba(0,11,88,0.15); }
+body[data-visual-preset="light_navy"] .stepper-val { color: #000B58; }
+body[data-visual-preset="light_navy"] .hint-bar { background: rgba(0,11,88,0.04); border-color: rgba(0,11,88,0.1); color: #000B58; }
+body[data-visual-preset="light_navy"] .quote-input,
+body[data-visual-preset="light_navy"] .quote-textarea,
+body[data-visual-preset="light_navy"] .quote-select { background: #fff; border-color: rgba(0,11,88,0.12); color: #000B58; }
+body[data-visual-preset="light_navy"] .quote-input::placeholder,
+body[data-visual-preset="light_navy"] .quote-textarea::placeholder { color: rgba(0,11,88,0.4); }
+body[data-visual-preset="light_navy"] .btn-devis { background: #000B58; color: #D4A017; }
+body[data-visual-preset="light_navy"] .btn-ia { background: linear-gradient(135deg, #D4A017, #e8b830); color: #000B58; }
+body[data-visual-preset="light_navy"] .style-preset { color: #000B58; border-color: rgba(0,11,88,0.15); }
+body[data-visual-preset="light_navy"] .style-preset.active { background: #000B58; color: #D4A017; border-color: #000B58; }
+
+/* ═══ Minimal — ultra-clean ═══ */
+body[data-visual-preset="minimal"] header {
+  background: #fff;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  box-shadow: none;
+}
+body[data-visual-preset="minimal"] .logo-icon { color: #000B58; border-color: rgba(0,11,88,0.2); text-shadow: none; box-shadow: none; }
+body[data-visual-preset="minimal"] .logo-text h1 { color: #1a1a1a; text-shadow: none; }
+body[data-visual-preset="minimal"] .logo-text p { color: #6b7280; text-shadow: none; }
+body[data-visual-preset="minimal"] .btn-themes,
+body[data-visual-preset="minimal"] .btn-params { color: #1a1a1a; border-color: rgba(0,0,0,0.12); }
+body[data-visual-preset="minimal"] .ctrl-card,
+body[data-visual-preset="minimal"] .params-panel {
+  background: #fff; border-color: rgba(0,0,0,0.08);
+  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+}
+body[data-visual-preset="minimal"] .ctrl-title,
+body[data-visual-preset="minimal"] .stepper-label,
+body[data-visual-preset="minimal"] .slider-label,
+body[data-visual-preset="minimal"] .param-label,
+body[data-visual-preset="minimal"] .param-header,
+body[data-visual-preset="minimal"] .synth-label,
+body[data-visual-preset="minimal"] .synth-number,
+body[data-visual-preset="minimal"] .synth-detail,
+body[data-visual-preset="minimal"] .synth-prodlabel,
+body[data-visual-preset="minimal"] .pack-synth-dims,
+body[data-visual-preset="minimal"] .check-item,
+body[data-visual-preset="minimal"] .pack-synth-sub { color: #1a1a1a !important; text-shadow: none !important; }
+body[data-visual-preset="minimal"] .slider-value .unit { color: #1a1a1a !important; }
+body[data-visual-preset="minimal"] .mode-btn { color: #4a5568; border-color: rgba(0,0,0,0.1); }
+body[data-visual-preset="minimal"] .mode-btn.active { background: #000B58; color: #fff; border-color: #000B58; box-shadow: none; }
+body[data-visual-preset="minimal"] .synthesis-card,
+body[data-visual-preset="minimal"] .pack-synth { background: #fafafa; border-color: rgba(0,0,0,0.06); box-shadow: none; }
+body[data-visual-preset="minimal"] input[type="range"] { background: rgba(0,0,0,0.08); }
+body[data-visual-preset="minimal"] input[type="range"]::-webkit-slider-thumb,
+body[data-visual-preset="minimal"] input[type="range"]::-moz-range-thumb { background: #000B58; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+body[data-visual-preset="minimal"] .stepper-btn { color: #4a5568; border-color: rgba(0,0,0,0.1); }
+body[data-visual-preset="minimal"] .stepper-val { color: #1a1a1a; }
+body[data-visual-preset="minimal"] .hint-bar { background: #fff; border-color: rgba(0,0,0,0.06); color: #6b7280; }
+body[data-visual-preset="minimal"] .quote-input,
+body[data-visual-preset="minimal"] .quote-textarea,
+body[data-visual-preset="minimal"] .quote-select { background: #fafafa; border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
+body[data-visual-preset="minimal"] .quote-input::placeholder,
+body[data-visual-preset="minimal"] .quote-textarea::placeholder { color: rgba(0,0,0,0.35); }
+body[data-visual-preset="minimal"] .btn-devis { background: #000B58; color: #fff; }
+body[data-visual-preset="minimal"] .btn-ia { background: linear-gradient(135deg, #6b7280, #9ca3af); }
+body[data-visual-preset="minimal"] .style-preset { color: #4a5568; border-color: rgba(0,0,0,0.1); }
+body[data-visual-preset="minimal"] .style-preset.active { background: #000B58; color: #fff; border-color: #000B58; }
+
+.brief-summary {
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; font-size: 12px; line-height: 1.5; min-height: 60px; color: var(--primary);
+}
+.btn-demande-prix {
+  width: 100%; padding: 14px; border-radius: 8px; border: 2px solid #D4A017;
+  background: linear-gradient(135deg, #000B58, #0a1a6e); color: #D4A017;
+  font-family: var(--font); font-size: 15px; font-weight: 900; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 2px; transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(0,11,88,0.3);
+}
+.btn-demande-prix:hover { background: linear-gradient(135deg, #0a1a6e, #142580); box-shadow: 0 6px 24px rgba(0,11,88,0.45); transform: translateY(-1px); }
+.btn-envoyer {
+  width: 100%; padding: 12px; border-radius: 8px; border: none; margin-top: 8px;
+  background: #D4A017; color: #000B58;
+  font-family: var(--font); font-size: 14px; font-weight: 800; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 1.5px; transition: all 0.2s;
+}
+.btn-envoyer:hover { background: #e8b830; transform: translateY(-1px); }
+.btn-upload {
+  display: flex; align-items: center; justify-content: center; width: 100%;
+  padding: 10px; margin-top: 8px; border-radius: 8px;
+  border: 1px dashed var(--border); background: transparent; color: var(--primary);
+  font-family: var(--font); font-size: 11px; font-weight: 700; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s;
+}
+.btn-upload:hover { border-color: #D4A017; color: #D4A017; }
+.file-list { margin-top: 6px; font-size: 11px; color: var(--primary); }
+.file-item { padding: 3px 0; display: flex; justify-content: space-between; align-items: center; }
+.file-item .remove { cursor: pointer; color: #ff4444; font-weight: bold; }
+
+/* Day theme overrides for new buttons */
+body[data-visual-preset="full_white"] .brief-summary,
+body[data-visual-preset="navy_glass"] .brief-summary,
+body[data-visual-preset="light_navy"] .brief-summary,
+body[data-visual-preset="minimal"] .brief-summary { background: rgba(0,11,88,0.03); border-color: rgba(0,11,88,0.1); color: #000B58; }
+body[data-visual-preset="full_white"] .btn-upload,
+body[data-visual-preset="navy_glass"] .btn-upload,
+body[data-visual-preset="light_navy"] .btn-upload,
+body[data-visual-preset="minimal"] .btn-upload { border-color: rgba(0,11,88,0.2); color: #000B58; }
+body[data-visual-preset="full_white"] .file-list,
+body[data-visual-preset="navy_glass"] .file-list,
+body[data-visual-preset="light_navy"] .file-list,
+body[data-visual-preset="minimal"] .file-list { color: #000B58; }
+
+.quote-grid { display: grid; gap: 8px; }
+.quote-input, .quote-select, .quote-textarea {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 8px;
+  outline: none;
+}
+.quote-input::placeholder, .quote-textarea::placeholder {
+  color: rgba(255,255,255,0.75);
+  font-weight: 700;
+}
+.quote-textarea { min-height: 62px; resize: vertical; }
+.quote-input:focus, .quote-select:focus, .quote-textarea:focus { border-color: var(--accent); }
+
+body[data-ui-theme="day"] {
+  --bg: #ffffff;
+  --surface: linear-gradient(165deg, rgba(247, 250, 255, 0.99), rgba(240, 246, 255, 0.99));
+  --border: rgba(18, 38, 66, 0.24);
+  --primary: #111f31;
+  --muted: #ffffff;
+  --accent: #0f3a73;
+  --accent2: #1a4f95;
+}
+
+body[data-ui-theme="day"]::before { opacity: 0.06; }
+body[data-ui-theme="day"] header {
+  background: linear-gradient(90deg, rgba(245,250,255,0.99), rgba(245,250,255,0.99));
+  border-bottom-color: rgba(15, 58, 115, 0.18);
+  box-shadow: 0 8px 18px rgba(15, 58, 115, 0.06);
+}
+body[data-ui-theme="day"] .logo-icon {
+  border-color: rgba(15, 58, 115, 0.55);
+  color: #0f3a73;
+  box-shadow: none;
+  text-shadow: none;
+}
+body[data-ui-theme="day"] .logo-text h1 { color: #0f3a73; text-shadow: none; }
+body[data-ui-theme="day"] .logo-text p { color: #4a6280; text-shadow: none; }
+body[data-ui-theme="day"] .ctrl-card,
+body[data-ui-theme="day"] .params-panel {
+  border-color: rgba(15, 58, 115, 0.22);
+  box-shadow: 0 8px 18px rgba(15, 58, 115, 0.08), 0 0 0 1px rgba(15, 58, 115, 0.08) inset;
+}
+body[data-ui-theme="day"] .viewport {
+  background:
+    radial-gradient(500px 300px at 52% 42%, rgba(42, 52, 66, 0.03), transparent 70%),
+    radial-gradient(500px 300px at 62% 55%, rgba(52, 62, 74, 0.03), transparent 72%),
+    #ffffff;
+}
+body[data-ui-theme="day"] .viewport::before {
+  background-image:
+    linear-gradient(rgba(24, 73, 136, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(24, 73, 136, 0.07) 1px, transparent 1px);
+}
+body[data-ui-theme="day"] .viewport::after {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(58, 66, 78, 0.008) 2px,
+    rgba(58, 66, 78, 0.008) 4px
+  );
+}
+
+@keyframes dustDrift {
+  0% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(-12px, 8px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+/* ── TABLETTE (< 980px) : panneaux sous le viewport ── */
+@media (max-width: 980px) {
+  body { overflow: auto; height: auto; min-height: 100vh; }
+  .app { min-height: 100vh; height: auto; }
+  .main {
+    display: flex; flex-direction: column;
+    min-height: calc(100vh - 56px);
+    gap: 10px; padding: 10px;
+  }
+  .viewport {
+    min-height: 50vh; flex-shrink: 0;
+    border: 1px solid rgba(98, 254, 255, 0.2);
+    border-radius: 12px; overflow: hidden;
+    position: relative;
+  }
+  .controls-left,
+  .controls-right {
+    position: static; width: 100%;
+    max-height: none; overflow: visible;
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .controls-left > .ctrl-card,
+  .controls-right > .ctrl-card {
+    flex: 1 1 calc(50% - 4px); min-width: 220px;
+  }
+}
+
+/* ── MOBILE (< 600px) : panneaux pleine largeur empilés ── */
+@media (max-width: 600px) {
+  .main { padding: 6px; gap: 6px; }
+  .viewport { min-height: 40vh; }
+  .controls-left,
+  .controls-right {
+    flex-direction: column; flex-wrap: nowrap;
+  }
+  .controls-left > .ctrl-card,
+  .controls-right > .ctrl-card {
+    flex: 1 1 100%; min-width: 0;
+  }
+  .ctrl-card { padding: 10px 12px; }
+  .ctrl-title { font-size: 9px; letter-spacing: 2px; margin-bottom: 6px; }
+  .stepper-btn { width: 28px; height: 28px; font-size: 15px; }
+  .stepper-val { min-width: 44px; height: 28px; font-size: 13px; }
+  .synth-number { font-size: 36px; }
+  .synth-label { font-size: 12px; letter-spacing: 2px; }
+  .mode-btn { padding: 10px 6px; }
+  .mode-icon { font-size: 18px; }
+  .mode-label { font-size: 9px; }
+  header { padding: 6px 10px; }
+  .logo-icon { width: 26px; height: 26px; font-size: 12px; }
+  .logo-text h1 { font-size: 13px; }
+  .logo-text p { letter-spacing: 2px; font-size: 7px; }
+  .btn-params { font-size: 9px; padding: 4px 8px; }
+  .btn-themes { font-size: 9px; padding: 4px 8px; }
+  .header-right { gap: 6px; }
+}
+
+/* ── TRÈS PETIT ÉCRAN (< 400px) : compact max ── */
+@media (max-width: 400px) {
+  .viewport { min-height: 35vh; }
+  .logo-text h1 { font-size: 11px; letter-spacing: 0.5px; }
+  .logo-text p { display: none; }
+  .btn-params { display: none; }
+  .header-right { gap: 4px; }
+  .ctrl-card { padding: 8px 10px; }
+  .slider-field { margin-bottom: 6px; }
+}
+
+.brief-textarea{width:100%;min-height:120px;resize:vertical;border:1px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.07);color:#fff;font-family:var(--font);font-size:13px;font-weight:600;padding:10px;outline:none;margin-top:8px;}
+.brief-textarea::placeholder{color:rgba(255,255,255,0.5);font-weight:600;}
+.brief-textarea:focus{border-color:var(--accent);}
+.btn-send-devis{width:100%;padding:11px;border-radius:8px;border:none;background:var(--accent);color:#000;font-family:var(--font);font-size:13px;font-weight:800;cursor:pointer;margin-top:8px;text-transform:uppercase;letter-spacing:1px;transition:opacity 0.2s;}
+.btn-send-devis:hover{opacity:0.85;}
+.btn-ia{width:100%;padding:11px;border-radius:8px;border:none;background:linear-gradient(135deg,#7C3AED,#DB2777);color:#fff;font-family:var(--font);font-size:13px;font-weight:800;cursor:pointer;margin-top:6px;text-transform:uppercase;letter-spacing:1px;box-shadow:0 4px 16px rgba(124,58,237,0.45);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-ia:hover{box-shadow:0 6px 24px rgba(124,58,237,0.65);transform:translateY(-1px);}
+.btn-ia:disabled{opacity:0.6;cursor:wait;transform:none;}
+.ia-proposals{display:none;margin-top:10px;}
+.ia-proposals.show{display:block;}
+.ia-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all 0.2s;}
+.ia-card:hover{background:rgba(124,58,237,0.2);border-color:#7C3AED;transform:translateX(3px);}
+.ia-card.selected{background:rgba(124,58,237,0.25);border-color:#7C3AED;box-shadow:0 0 16px rgba(124,58,237,0.4);}
+.ia-card-title{font-size:13px;font-weight:800;color:#fff;margin-bottom:4px;}
+.ia-card-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:6px;}
+.ia-card-desc{font-size:11px;color:rgba(255,255,255,0.75);font-weight:600;line-height:1.4;}
+
+/* ═══════════════════════════════════════════════════════ */
+/* MOBILE OVERRIDES — pleine page, UI minimale, plv centrée */
+/* ═══════════════════════════════════════════════════════ */
+#mobile-dock { display: none; }
+@media (max-width: 768px) {
+  body { overflow: hidden !important; }
+  .app { height: 100vh !important; min-height: 100vh !important; }
+  header { display: none !important; }
+  .controls-left, .controls-right, .params-panel, .hint-bar,
+  #themeMenu, .theme-wrap, .ia-proposals, #toast { display: none !important; }
+  .main { padding: 0 !important; gap: 0 !important; flex-direction: column !important; }
+  .viewport {
+    flex: 1 1 100% !important; min-height: 100vh !important;
+    height: 100vh !important; width: 100vw !important;
+    border-radius: 0 !important; border: none !important;
+    margin: 0 !important;
+  }
+  #mobile-dock {
+    display: flex !important;
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    gap: 6px; z-index: 1000; align-items: stretch;
+    background: rgba(255,255,255,0.94); backdrop-filter: blur(10px);
+    padding: 6px 10px; border-radius: 18px;
+    box-shadow: 0 6px 22px rgba(0,11,88,0.22);
+    font-family: 'Rajdhani', system-ui, sans-serif;
+    border: 1px solid rgba(0,11,88,0.08);
+    max-width: calc(100vw - 24px);
+  }
+  #mobile-dock .group {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px; padding: 2px 4px;
+  }
+  #mobile-dock .row { display: flex; align-items: center; gap: 4px; }
+  #mobile-dock .sep { width: 1px; background: rgba(0,11,88,0.12); margin: 4px 2px; }
+  #mobile-dock button {
+    width: 32px; height: 32px; border-radius: 9999px;
+    border: 1px solid rgba(0,11,88,0.18); background: white;
+    color: #000B58; font-size: 18px; font-weight: 700;
+    cursor: pointer; padding: 0; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.1s, background 0.15s;
+  }
+  #mobile-dock button:active { transform: scale(0.9); background: #f2f4f9; }
+  #mobile-dock .label {
+    font-size: 8.5px; color: #000B58; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    line-height: 1; opacity: 0.78;
+  }
+  #mobile-dock .val {
+    min-width: 18px; text-align: center; font-size: 14px; font-weight: 800;
+    color: #000B58;
+  }
+}
+</style>
+</head>
+<body data-ui-theme="day" data-visual-preset="light_navy">
+
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">M</div>
+      <div class="logo-text">
+        <h1>Multipoles 3D Studio</h1>
+        <p>PLV & Packaging Builder</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-params" id="btnParams" onclick="toggleParams()">Parametres avances</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="viewport">
+      <canvas id="canvas3d"></canvas>
+
+      <!-- ══════ LEFT PANEL ══════ -->
+      <div class="controls-left">
+
+        <!-- Mode toggle -->
+        <div class="ctrl-card" style="padding: 10px;">
+          <div class="mode-toggle">
+            <button class="mode-btn active" id="btnModePLV" onclick="setMode('plv')">
+              <span class="mode-icon">&#9638;</span>
+              <span class="mode-label">PLV</span>
+            </button>
+            <button class="mode-btn" id="btnModePack" onclick="setMode('pack')">
+              <span class="mode-icon">&#9634;</span>
+              <span class="mode-label">Packaging</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── PLV LEFT ── -->
+        <div id="plvLeft">
+          <div class="ctrl-card synthesis-card">
+            <div class="synth-label">PLV DE SOL</div>
+            <div class="synth-number" id="totalCap">64</div>
+            <div class="synth-prodlabel">produits</div>
+            <div class="synth-dims" id="synthDims">400 x 400 x 1791 mm</div>
+            <div class="synth-detail" id="synthDetail">4 facing x 4 prof. x 4 etageres</div>
+          </div>
+
+          <div class="ctrl-card">
+            <div class="ctrl-title">Etageres</div>
+            <div class="stepper">
+              <span class="stepper-label">Nombre</span>
+              <div class="stepper-controls">
+                <button class="stepper-btn" onclick="step('nbShelves',-1)">&minus;</button>
+                <div class="stepper-val"><span id="vShelves">4</span></div>
+                <button class="stepper-btn" onclick="step('nbShelves',1)">+</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ctrl-card">
+            <div class="ctrl-title">Produits par etagere</div>
+            <div class="stepper">
+              <span class="stepper-label">Facing</span>
+              <div class="stepper-controls">
+                <button class="stepper-btn" onclick="step('facing',-1)">&minus;</button>
+                <div class="stepper-val"><span id="vFacing">4</span></div>
+                <button class="stepper-btn" onclick="step('facing',1)">+</button>
+              </div>
+            </div>
+            <div class="stepper">
+              <span class="stepper-label">Profondeur</span>
+              <div class="stepper-controls">
+                <button class="stepper-btn" onclick="step('prodDepth',-1)">&minus;</button>
+                <div class="stepper-val"><span id="vProdDepth">4</span></div>
+                <button class="stepper-btn" onclick="step('prodDepth',1)">+</button>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-perso" id="btnPerso" onclick="togglePerso()">Personnaliser les dimensions de votre produit</button>
+
+          <div class="ctrl-card perso-panel" id="persoPanel">
+            <div class="ctrl-title">Presets flacons</div>
+            <div class="perso-presets">
+              <button class="preset-btn" onclick="applyPreset(30,30,80)">20ml</button>
+              <button class="preset-btn" onclick="applyPreset(40,40,100)">50ml</button>
+              <button class="preset-btn active" onclick="applyPreset(50,50,120)">100ml</button>
+              <button class="preset-btn" onclick="applyPreset(60,60,140)">200ml</button>
+            </div>
+            <div class="ctrl-title" style="margin-top:10px">Sur mesure</div>
+            <div class="slider-field">
+              <div class="slider-header"><span class="slider-label">Largeur</span>
+                <span class="slider-value"><span id="ppW">100</span><span class="unit">mm</span></span></div>
+              <input type="range" id="slPersoW" min="20" max="200" step="5" value="100">
+            </div>
+            <div class="slider-field">
+              <div class="slider-header"><span class="slider-label">Profondeur</span>
+                <span class="slider-value"><span id="ppD">100</span><span class="unit">mm</span></span></div>
+              <input type="range" id="slPersoD" min="20" max="200" step="5" value="100">
+            </div>
+            <div class="slider-field">
+              <div class="slider-header"><span class="slider-label">Hauteur</span>
+                <span class="slider-value"><span id="ppH">225</span><span class="unit">mm</span></span></div>
+              <input type="range" id="slPersoH" min="30" max="300" step="5" value="225">
+            </div>
+          </div>
+
+          <div class="ctrl-card">
+            <div class="ctrl-title">Dimensions du presentoir</div>
+            <div class="slider-field">
+              <div class="slider-header"><span class="slider-label">Largeur</span>
+                <span class="slider-value"><span id="dW">400</span><span class="unit">mm</span></span></div>
+              <input type="range" id="slDimW" min="50" max="2000" step="1" value="400">
+            </div>
+            <div class="slider-field">
+              <div class="slider-header"><span class="slider-label">Profondeur</span>
+                <span class="slider-value"><span id="dD">400</span><span class="unit">mm</span></span></div>
+              <input type="range" id="slDimD" min="50" max="1500" step="1" value="400">
+            </div>
+            <div class="slider-field">
+              <div class="slider-header"><span class="slider-label">Hauteur</span>
+                <span class="slider-value"><span id="dH">1441</span><span class="unit">mm</span></span></div>
+              <input type="range" id="slDimH" min="300" max="2500" step="1" value="1441">
+            </div>
+            <div class="slider-field">
+              <div class="slider-header"><span class="slider-label">Fronton</span>
+                <span class="slider-value"><span id="dF">350</span><span class="unit">mm</span></span></div>
+              <input type="range" id="slDimF" min="100" max="600" step="10" value="350">
+            </div>
+          </div>
+        </div>
+
+        <!-- ── PACKAGING LEFT ── -->
+        <div id="packLeft" class="hidden">
+          <div class="ctrl-card pack-synth">
+            <div class="synth-label">PACKAGING</div>
+            <div class="pack-synth-dims" id="packDimsDisplay">50 x 50 x 150 mm</div>
+            <div class="pack-synth-sub" id="packSynthSub">Offset | Mat</div>
+          </div>
+
+          <div class="ctrl-card">
+            <div class="ctrl-title">Dimensions etui</div>
+            <div class="perso-presets" style="margin-bottom:8px">
+              <button class="preset-btn" onclick="packPreset(30,30,80)">20ml</button>
+              <button class="preset-btn" onclick="packPreset(40,40,100)">50ml</button>
+              <button class="preset-btn active" onclick="packPreset(50,50,150)">100ml</button>
+              <button class="preset-btn" onclick="packPreset(60,60,180)">200ml</button>
+            </div>
+            <div class="slider-field">
+              <div class="slider-header"><span class="slider-label">Largeur</span>
+                <span class="slider-value"><span id="bW">50</span><span class="unit">mm</span></span></div>
+              <input type="range" id="slBoxW" min="20" max="150" step="1" value="50">
+            </div>
+            <div class="slider-field">
+              <div class="slider-header"><span class="slider-label">Profondeur</span>
+                <span class="slider-value"><span id="bD">50</span><span class="unit">mm</span></span></div>
+              <input type="range" id="slBoxD" min="20" max="150" step="1" value="50">
+            </div>
+            <div class="slider-field">
+              <div class="slider-header"><span class="slider-label">Hauteur</span>
+                <span class="slider-value"><span id="bH">150</span><span class="unit">mm</span></span></div>
+              <input type="range" id="slBoxH" min="30" max="300" step="1" value="150">
+            </div>
+          </div>
+
+          <div class="ctrl-card">
+            <div class="ctrl-title">Construction</div>
+            <div class="tags-wrap" id="tagsConstruction">
+              <span class="tag active" data-val="patte-alternee">Patte alternee</span>
+              <span class="tag" data-val="patte-opposee">Patte opposee</span>
+              <span class="tag active" data-val="fond-semi-auto">Fond semi-auto</span>
+              <span class="tag" data-val="fond-auto">Fond automatique</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════ RIGHT PANEL ══════ -->
+      <div class="controls-right">
+
+        <!-- ── PLV RIGHT ── -->
+        <div id="plvRight">
+          <div class="ctrl-card">
+            <div class="ctrl-title">Infos devis client</div>
+            <div class="quote-grid">
+              <input class="quote-input" id="qCompany" type="text" placeholder="Societe">
+              <input class="quote-input" id="qPhone" type="tel" placeholder="Telephone">
+              <textarea class="quote-textarea" id="qProductDesc" placeholder="Description produit"></textarea>
+              <input class="quote-input" id="qQty" type="number" min="1" step="1" placeholder="Quantite">
+              <input class="quote-input" id="qConditioning" type="text" placeholder="Conditionnement">
+              <input class="quote-input" id="qDeliveryPlace" type="text" placeholder="Lieu de livraison">
+              <input class="quote-input" id="qDeadline" type="date" placeholder="Deadline livraison">
+            </div>
+          </div>
+          <div class="ctrl-card">
+            <div class="ctrl-title">Brief projet</div>
+            <textarea class="brief-textarea" id="qBrief" placeholder="Secteur, produits, quantite, ambiance, contraintes..."></textarea>
+            <button class="btn-send-devis" onclick="sendDevis()">RECEVOIR MON DEVIS</button>
+            <button class="btn-ia" id="btnIA" onclick="iaInspire()"><span>&#10024;</span><span>IA : Inspire-moi</span></button>
+            <div class="ia-proposals" id="iaProposals"></div>
+          </div>
+          <div class="ctrl-card">
+            <div class="ctrl-title">Theme</div>
+            <div class="style-presets" id="stylePresets">
+              <button class="style-preset" data-preset="light_navy" onclick="applyVisualPreset('light_navy')">Light Navy</button>
+              <button class="style-preset" data-preset="full_white" onclick="applyVisualPreset('full_white')">Full White</button>
+              <button class="style-preset" data-preset="navy_glass" onclick="applyVisualPreset('navy_glass')">Navy Glass</button>
+              <button class="style-preset" data-preset="sunset" onclick="applyVisualPreset('sunset')">Warm pro</button>
+              <button class="style-preset" data-preset="neutral" onclick="applyVisualPreset('neutral')">Studio neutre</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── PACKAGING RIGHT ── -->
+        <div id="packRight" class="hidden">
+          <div class="ctrl-card">
+            <div class="ctrl-title">Impression</div>
+            <div class="option-group" id="grpPrint">
+              <button class="option-btn active" data-val="offset">Offset</button>
+              <button class="option-btn" data-val="numerique">Numerique</button>
+              <button class="option-btn" data-val="serigraphie">Serigraphie</button>
+            </div>
+          </div>
+          <div class="ctrl-card">
+            <div class="ctrl-title">Finition</div>
+            <div class="option-group" id="grpFinish">
+              <button class="option-btn active" data-val="mat">Mat</button>
+              <button class="option-btn" data-val="brillant">Brillant</button>
+              <button class="option-btn" data-val="satine">Satine</button>
+            </div>
+            <div class="ctrl-title" style="margin-top:10px">Matiere</div>
+            <div class="option-group" id="grpPaper">
+              <button class="option-btn active" data-val="blanc-blanc">Blanc / Blanc</button>
+              <button class="option-btn" data-val="blanc-bois">Blanc / Bois</button>
+            </div>
+          </div>
+          <div class="ctrl-card">
+            <div class="ctrl-title">Nombre de couleurs</div>
+            <div class="color-btns" id="grpColors">
+              <button class="color-btn" data-val="1">1</button>
+              <button class="color-btn" data-val="2">2</button>
+              <button class="color-btn" data-val="3">3</button>
+              <button class="color-btn active" data-val="4">4</button>
+              <button class="color-btn" data-val="5">5+</button>
+            </div>
+          </div>
+          <div class="ctrl-card">
+            <div class="ctrl-title">Options luxe</div>
+            <div class="check-list" id="grpLuxe">
+              <div class="check-item" data-val="dorure" onclick="toggleCheck(this)">
+                <div class="check-box">&#10003;</div><span>Dorure a chaud</span></div>
+              <div class="check-item" data-val="embossage" onclick="toggleCheck(this)">
+                <div class="check-box">&#10003;</div><span>Embossage</span></div>
+              <div class="check-item" data-val="vernis" onclick="toggleCheck(this)">
+                <div class="check-box">&#10003;</div><span>Vernis selectif</span></div>
+              <div class="check-item" data-val="pelliculage" onclick="toggleCheck(this)">
+                <div class="check-box">&#10003;</div><span>Pelliculage</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="hint-bar">Cliquer-glisser pour tourner | Molette pour zoomer</div>
+
+      <!-- Dieline 2D (packaging mode only) -->
+      <div id="dielineWrap" class="hidden" style="background:#0A0A0F;border-top:1px solid rgba(0,255,255,0.15);padding:10px 12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="font-size:11px;font-weight:600;color:rgba(0,255,255,0.6);text-transform:uppercase;letter-spacing:2px;font-family:'Orbitron',monospace;">Plan a plat (dieline)</span>
+          <span style="font-size:9px;color:rgba(255,255,255,0.3);">Coupe <span style="color:#c8d6e8;">&#9644;</span> &nbsp;Pliure <span style="color:#c8d6e8;">- - -</span></span>
+        </div>
+        <canvas id="dielineCanvas" style="width:100%;border-radius:2px;background:#0A0A0F;border:1px solid rgba(0,255,255,0.08);"></canvas>
+      </div>
+    </div>
+
+    <!-- Params panel (advanced PLV) -->
+    <div class="params-panel" id="paramsPanel">
+      <button class="param-close" onclick="toggleParams()">&times;</button>
+      <div class="param-section">
+        <div class="param-title">Structure PLV</div>
+        <div class="param-field">
+          <div class="param-header"><span class="param-label">Hauteur socle</span>
+            <span class="param-value"><span id="pBase">450</span><span class="unit">mm</span></span></div>
+          <input type="range" id="slBase" min="50" max="600" step="10" value="450">
+        </div>
+        <div class="param-field">
+          <div class="param-header"><span class="param-label">Rebord etagere</span>
+            <span class="param-value"><span id="pLip">14</span><span class="unit">mm</span></span></div>
+          <input type="range" id="slLip" min="0" max="40" step="1" value="14">
+        </div>
+        <div class="param-field">
+          <div class="param-header"><span class="param-label">Marge au dessus pack</span>
+            <span class="param-value"><span id="pHead">18</span><span class="unit">mm</span></span></div>
+          <input type="range" id="slHead" min="5" max="60" step="1" value="18">
+        </div>
+      </div>
+      <div class="param-section">
+        <div class="param-title">Fronton</div>
+        <div class="param-field">
+          <div class="param-header"><span class="param-label">Forme</span>
+            <span class="param-value"><span id="pShape">Arrondi</span></span></div>
+          <input type="range" id="slShape" min="0" max="2" step="1" value="1">
+        </div>
+      </div>
+      <div class="param-section">
+        <div class="param-title">Resume du brief</div>
+        <div id="briefSummary" class="brief-summary">
+          <em style="opacity:0.5;font-size:11px;">Configurez votre PLV ou Packaging ci-contre, puis remplissez vos coordonnees pour recevoir un devis.</em>
+        </div>
+      </div>
+      <div class="param-section" style="margin-top:8px;">
+        <button class="btn-demande-prix" id="btnDemandePrix" onclick="preparerDemande()">DEMANDE DE PRIX</button>
+        <button class="btn-envoyer" id="btnEnvoyer" onclick="envoyerDemande()">ENVOYER</button>
+        <label class="btn-upload" id="btnUpload">
+          <input type="file" id="fileUpload" multiple accept=".pdf,.jpg,.png,.ai,.eps,.doc,.docx" style="display:none;" onchange="handleFileUpload(event)">
+          <span>+ JOINDRE DES FICHIERS</span>
+        </label>
+        <div id="fileList" class="file-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ═══════════════════════════════════════════════════════
+// MODE
+// ═══════════════════════════════════════════════════════
+let currentMode = 'plv';
+
+// ═══════════════════════════════════════════════════════
+// PLV STATE
+// ═══════════════════════════════════════════════════════
+const S = {
+  prodW: 100, prodD: 100, prodH: 225,
+  facing: 4, prodDepth: 4, nbShelves: 4,
+  wallT: 4, baseH: 450, frontonH: 350,
+  frontonShape: 1, shelfLip: 14, headroom: 18,
+};
+
+// ═══════════════════════════════════════════════════════
+// PACKAGING STATE
+// ═══════════════════════════════════════════════════════
+const P = {
+  boxW: 50, boxD: 50, boxH: 150,
+  construction: ['patte-alternee', 'fond-semi-auto'],
+  printType: 'offset', finish: 'mat',
+  paper: 'blanc-blanc', colors: 4,
+  luxe: [],
+};
+
+const V = {
+  preset: 'sunset',
+  uiMode: 'dark',
+  bg: '#F8F9FA',
+  fog: '#F8F9FA',
+  grid: '#ffbe8c',
+  plvCrease: '#ffd7a7',
+  plvBody: '#4a2f23',
+  prodCrease: '#ffe5c1',
+  prodBody: '#7a4b30',
+  packCrease: '#ffb986',
+  packBase: '#ff9a5f',
+};
+
+const THEMES = {
+  neutral: {
+    uiMode: 'dark',
+    bg: '#070b12',
+    fog: '#070b12',
+    grid: '#9eb5d1',
+    plvCrease: '#c8d6e8',
+    plvBody: '#243347',
+    prodCrease: '#f2d7b0',
+    prodBody: '#5a4530',
+    packCrease: '#c8d6e8',
+    packBase: '#5f88bf',
+  },
+  cobalt: {
+    uiMode: 'dark',
+    bg: '#050c17',
+    fog: '#050c17',
+    grid: '#78b8ff',
+    plvCrease: '#89d7ff',
+    plvBody: '#143a58',
+    prodCrease: '#a5e8ff',
+    prodBody: '#285377',
+    packCrease: '#63c3ff',
+    packBase: '#5bc0ff',
+  },
+  sunset: {
+    uiMode: 'dark',
+    bg: '#130c0a',
+    fog: '#130c0a',
+    grid: '#ffbe8c',
+    plvCrease: '#ffd7a7',
+    plvBody: '#4a2f23',
+    prodCrease: '#ffe5c1',
+    prodBody: '#7a4b30',
+    packCrease: '#ffb986',
+    packBase: '#ff9a5f',
+  },
+  pharma: {
+    uiMode: 'dark',
+    bg: '#08151a',
+    fog: '#08151a',
+    grid: '#67c6c9',
+    plvCrease: '#8be3de',
+    plvBody: '#184247',
+    prodCrease: '#d9fbf9',
+    prodBody: '#3d777d',
+    packCrease: '#b8fff7',
+    packBase: '#66d8c8',
+  },
+  pharma_clair: {
+    uiMode: 'day',
+    bg: '#f7fffe',
+    fog: '#f7fffe',
+    grid: '#8fcfd2',
+    plvCrease: '#2f8f93',
+    plvBody: '#d2eeef',
+    prodCrease: '#1f6f73',
+    prodBody: '#bfe3e5',
+    packCrease: '#2c9da1',
+    packBase: '#7fd4c8',
+  },
+  cosmetique: {
+    uiMode: 'dark',
+    bg: '#120913',
+    fog: '#120913',
+    grid: '#d78acc',
+    plvCrease: '#f3b2e8',
+    plvBody: '#3d1938',
+    prodCrease: '#ffd9a1',
+    prodBody: '#6f3f25',
+    packCrease: '#ffc6e9',
+    packBase: '#ff8bc8',
+  },
+  tech: {
+    uiMode: 'dark',
+    bg: '#060a12',
+    fog: '#060a12',
+    grid: '#5f88bf',
+    plvCrease: '#8bb4e6',
+    plvBody: '#13263f',
+    prodCrease: '#ffd08a',
+    prodBody: '#3b2a17',
+    packCrease: '#ffb986',
+    packBase: '#ff9a5f',
+  },
+  jour_neutre: {
+    uiMode: 'day',
+    bg: '#ffffff',
+    fog: '#ffffff',
+    grid: '#5f8bc3',
+    plvCrease: '#0f4ea8',
+    plvBody: '#c7dcf8',
+    prodCrease: '#2a3250',
+    prodBody: '#9fb6d5',
+    packCrease: '#7a1f5e',
+    packBase: '#bf4a92',
+  },
+  full_white: {
+    uiMode: 'day',
+    bg: '#f5f5f5',
+    fog: '#f5f5f5',
+    grid: '#000B58',
+    plvCrease: '#000B58',
+    plvBody: '#e8eaf0',
+    prodCrease: '#1a2744',
+    prodBody: '#c5cde0',
+    packCrease: '#000B58',
+    packBase: '#FF6B00',
+  },
+  navy_glass: {
+    uiMode: 'day',
+    bg: '#eaeef2',
+    fog: '#eaeef2',
+    grid: '#06B6D4',
+    plvCrease: '#000B58',
+    plvBody: '#d4dce8',
+    prodCrease: '#0e7490',
+    prodBody: '#b8d4e0',
+    packCrease: '#06B6D4',
+    packBase: '#0891b2',
+  },
+  light_navy: {
+    uiMode: 'day',
+    bg: '#ffffff',
+    fog: '#ffffff',
+    grid: '#000B58',
+    plvCrease: '#000B58',
+    plvBody: '#e0e8f5',
+    prodCrease: '#2a3a5c',
+    prodBody: '#c8d5ea',
+    packCrease: '#D4A017',
+    packBase: '#D4A017',
+  },
+  minimal: {
+    uiMode: 'day',
+    bg: '#f8f9fa',
+    fog: '#f8f9fa',
+    grid: '#b0b8c4',
+    plvCrease: '#4a5568',
+    plvBody: '#e2e8f0',
+    prodCrease: '#2d3748',
+    prodBody: '#cbd5e0',
+    packCrease: '#000B58',
+    packBase: '#718096',
+  },
+};
+
+function hexToInt(hex) {
+  return parseInt(String(hex).replace('#', ''), 16);
+}
+
+function hexToRgba(hex, alpha) {
+  const n = hexToInt(hex);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// ═══════════════════════════════════════════════════════
+// PLV COMPUTE
+// ═══════════════════════════════════════════════════════
+function computeDims() {
+  const shelfT = Math.max(S.wallT * 1.2, 4);
+  const shelfSpacing = shelfT + S.prodH + S.headroom;
+  const innerW = S.facing * S.prodW;
+  const innerD = S.prodDepth * S.prodD;
+  const plvW = innerW + 2 * S.wallT;
+  const plvD = innerD + S.wallT;
+  const plvH = S.baseH + S.nbShelves * shelfSpacing;
+  const totalH = plvH + S.frontonH;
+  const total = S.facing * S.prodDepth * S.nbShelves;
+  return { shelfT, shelfSpacing, innerW, innerD, plvW, plvD, plvH, totalH, total };
+}
+
+// ═══════════════════════════════════════════════════════
+// MODE SWITCH
+// ═══════════════════════════════════════════════════════
+window.setMode = function(mode) {
+  currentMode = mode;
+  document.getElementById('btnModePLV').classList.toggle('active', mode === 'plv');
+  document.getElementById('btnModePack').classList.toggle('active', mode === 'pack');
+  document.getElementById('plvLeft').classList.toggle('hidden', mode !== 'plv');
+  document.getElementById('packLeft').classList.toggle('hidden', mode !== 'pack');
+  document.getElementById('plvRight').classList.toggle('hidden', mode !== 'plv');
+  document.getElementById('packRight').classList.toggle('hidden', mode !== 'pack');
+  document.getElementById('btnParams').classList.toggle('hidden', mode !== 'plv');
+  document.getElementById('dielineWrap').classList.toggle('hidden', mode !== 'pack');
+  applyThemeToScene(mode);
+  if (mode === 'plv') {
+    buildPLV(); updatePlvUI();
+  } else {
+    buildPackaging(); updatePackUI();
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// PLV STEP
+// ═══════════════════════════════════════════════════════
+const LIMITS = { facing: [1,20], prodDepth: [1,12], nbShelves: [1,8] };
+window.step = function(key, delta) {
+  S[key] = Math.max(LIMITS[key][0], Math.min(LIMITS[key][1], S[key] + delta));
+  rebuildPLV();
+};
+
+// ═══════════════════════════════════════════════════════
+// PERSONNALISER
+// ═══════════════════════════════════════════════════════
+window.togglePerso = function() {
+  document.getElementById('persoPanel').classList.toggle('open');
+};
+
+window.applyPreset = function(w, d, h) {
+  S.prodW = w; S.prodD = d; S.prodH = h;
+  document.querySelectorAll('#plvLeft .perso-presets .preset-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  const dims = computeDims();
+  if (dims.totalH > 2000) {
+    const maxPH = Math.floor(((2000 - S.frontonH - S.baseH) / S.nbShelves) - computeDims().shelfT - S.headroom);
+    S.prodH = Math.max(30, maxPH);
+    showToast(`Hauteur pack ajustee a ${S.prodH}mm pour rester sous 2000mm total`);
+  }
+  rebuildPLV();
+};
+
+// ═══════════════════════════════════════════════════════
+// PACKAGING PRESETS
+// ═══════════════════════════════════════════════════════
+window.packPreset = function(w, d, h) {
+  P.boxW = w; P.boxD = d; P.boxH = h;
+  document.querySelectorAll('#packLeft .perso-presets .preset-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  rebuildPack();
+};
+
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+function showToast(msg, duration = 3500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ═══════════════════════════════════════════════════════
+// PARAMS TOGGLE
+// ═══════════════════════════════════════════════════════
+window.toggleParams = function() {
+  document.getElementById('paramsPanel').classList.toggle('open');
+  document.getElementById('btnParams').classList.toggle('active');
+};
+
+window.toggleThemeMenu = function(event) {
+  if (event) event.stopPropagation();
+};
+
+// ═══════════════════════════════════════════════════════
+// OPTION GROUPS
+// ═══════════════════════════════════════════════════════
+function initOptionGroup(groupId, stateObj, stateKey, cb) {
+  const grp = document.getElementById(groupId);
+  if (!grp) return;
+  grp.querySelectorAll('.option-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      grp.querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      stateObj[stateKey] = btn.dataset.val;
+      if (cb) cb();
+    });
+  });
+}
+
+function initColorGroup() {
+  document.getElementById('grpColors').querySelectorAll('.color-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#grpColors .color-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      P.colors = parseInt(btn.dataset.val) || 5;
+      rebuildPack();
+    });
+  });
+}
+
+function syncStyleUI() {
+  document.querySelectorAll('#stylePresets .style-preset').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.preset === V.preset);
+  });
+}
+
+function applyThemeToScene(mode = currentMode) {
+  scene.background.set(hexToInt(V.bg));
+  scene.fog.color.set(hexToInt(V.fog));
+  scene.fog.near = mode === 'pack' ? 3.5 : 5;
+  scene.fog.far = mode === 'pack' ? 15 : 18;
+
+  if (V.uiMode === 'day') {
+    ground.material.color.set(0xf4f7fc);
+    ground.material.roughness = 0.9;
+    ground.material.clearcoat = 0.0;
+    ground.material.clearcoatRoughness = 1.0;
+    keyLight.intensity = mode === 'pack' ? 0.7 : 0.76;
+  } else {
+    ground.material.color.set(0x040A16);
+    ground.material.roughness = mode === 'pack' ? 0.4 : 0.35;
+    ground.material.clearcoat = mode === 'pack' ? 0.05 : 0.1;
+    ground.material.clearcoatRoughness = mode === 'pack' ? 0.9 : 0.8;
+    keyLight.intensity = mode === 'pack' ? 0.46 : 0.52;
+  }
+  renderer.toneMappingExposure = 1.0;
+}
+
+window.applyVisualPreset = function(preset) {
+  try {
+    if (!THEMES[preset]) { showToast('Preset inconnu: ' + preset); return; }
+    Object.assign(V, THEMES[preset], { preset });
+    document.body.dataset.uiTheme = V.uiMode;
+    document.body.dataset.visualPreset = preset;
+    // Update CSS --bg variable so body background matches scene
+    document.documentElement.style.setProperty('--bg', V.bg);
+    document.documentElement.style.setProperty('--surface',
+      V.uiMode === 'day' ? 'rgba(255,255,255,0.97)' : 'rgba(12,12,22,0.92)');
+    document.documentElement.style.setProperty('--primary',
+      V.uiMode === 'day' ? '#111f31' : '#E0E0FF');
+    document.documentElement.style.setProperty('--border',
+      V.uiMode === 'day' ? 'rgba(0,0,0,0.12)' : 'rgba(0,255,255,0.15)');
+    const gcol = hexToInt(V.grid);
+    if (Array.isArray(gridHelper.material)) {
+      gridHelper.material.forEach(m => m.color.setHex(gcol));
+    } else {
+      gridHelper.material.color.setHex(gcol);
+    }
+    applyThemeToScene(currentMode);
+    syncStyleUI();
+    if (currentMode === 'plv') rebuildPLV(); else rebuildPack();
+  } catch(err) {
+    showToast('Erreur theme: ' + err.message);
+    console.error('applyVisualPreset error:', err);
+  }
+};
+
+function initVisualControls() {
+  document.addEventListener('click', e => {
+    const wrap = document.querySelector('.theme-wrap');
+    if (!wrap || wrap.contains(e.target)) return;
+    document.getElementById('themeMenu').classList.remove('open');
+    document.getElementById('btnThemes').classList.remove('open');
+  });
+  // Init body attrs without overwriting CSS bg
+  document.body.dataset.uiTheme = V.uiMode;
+  document.body.dataset.visualPreset = V.preset;
+  syncStyleUI();
+}
+
+function initTags() {
+  document.getElementById('tagsConstruction').querySelectorAll('.tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      tag.classList.toggle('active');
+      P.construction = [...document.querySelectorAll('#tagsConstruction .tag.active')].map(t => t.dataset.val);
+      rebuildPack();
+    });
+  });
+}
+
+window.toggleCheck = function(el) {
+  el.classList.toggle('active');
+  P.luxe = [...document.querySelectorAll('#grpLuxe .check-item.active')].map(e => e.dataset.val);
+  rebuildPack();
+};
+
+// ═══════════════════════════════════════════════════════
+// THREE.JS SETUP — CYBERPUNK
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('canvas3d');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(hexToInt(V.bg));
+scene.fog = new THREE.Fog(hexToInt(V.fog), 5, 18);
+
+const camera = new THREE.PerspectiveCamera(32, 1, 0.01, 100);
+camera.position.set(3.2, 1.4, 3.8);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 0.3;
+controls.maxDistance = 10;
+controls.maxPolarAngle = Math.PI / 2 + 0.05;
+controls.target.set(0, 0.9, 0);
+
+// ── CYBERPUNK LIGHTING ──
+scene.add(new THREE.AmbientLight(0x14233a, 0.16));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.5);
+keyLight.position.set(5, 10, 6);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.near = 0.1; keyLight.shadow.camera.far = 25;
+keyLight.shadow.camera.left = -4; keyLight.shadow.camera.right = 4;
+keyLight.shadow.camera.top = 5; keyLight.shadow.camera.bottom = -1;
+keyLight.shadow.bias = -0.0008; keyLight.shadow.normalBias = 0.02;
+scene.add(keyLight);
+scene.add(new THREE.DirectionalLight(0xffffff, 0.18).translateX(-4).translateY(6).translateZ(-3));
+scene.add(new THREE.DirectionalLight(0xFFFFFF, 0.08).translateX(-1).translateY(4).translateZ(-6));
+scene.add(new THREE.HemisphereLight(0x0A0A2E, 0x000000, 0.1));
+
+// ── GROUND ──
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30),
+  new THREE.MeshPhysicalMaterial({ color: 0x040A16, roughness: 0.35, metalness: 0.15,
+    clearcoat: 0.1, clearcoatRoughness: 0.8, transparent: true, opacity: 0.35 }));
+ground.rotation.x = -Math.PI / 2; ground.position.y = -0.002; ground.receiveShadow = true;
+scene.add(ground);
+
+const gridHelper = new THREE.GridHelper(30, 60, hexToInt(V.grid), hexToInt(V.grid));
+gridHelper.material.opacity = 0.018;
+gridHelper.material.transparent = true;
+gridHelper.position.y = -0.001;
+scene.add(gridHelper);
+
+const sg = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.3 }));
+sg.rotation.x = -Math.PI / 2; sg.position.y = -0.001; sg.receiveShadow = true;
+scene.add(sg);
+
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+pmremGenerator.dispose();
+
+const plvGroup = new THREE.Group();
+scene.add(plvGroup);
+
+// ═══════════════════════════════════════════════════════
+// PLV 3D — CYBERPUNK
+// ═══════════════════════════════════════════════════════
+function cyberMat() {
+  return new THREE.MeshPhysicalMaterial({
+    color: hexToInt(V.plvBody),
+    emissive: 0x000000,
+    emissiveIntensity: 0,
+    roughness: 0.72,
+    metalness: 0.02,
+    clearcoat: 0.0,
+    clearcoatRoughness: 1.0,
+    side: THREE.DoubleSide,
+    envMapIntensity: 0.0,
+    transparent: true,
+    opacity: 0.42
+  });
+}
+
+function addEdges(mesh, color = 0xc8d6e8, op = 0.6) {
+  const edge = new THREE.LineSegments(
+    new THREE.EdgesGeometry(mesh.geometry, 20),
+    new THREE.LineBasicMaterial({
+      color,
+      transparent: true,
+      opacity: op,
+      depthTest: true,
+      depthWrite: false
+    })
+  );
+  mesh.add(edge);
+}
+
+function buildPLV() {
+  // ═══ MODÈLE PALLET V1 — PLV sur palette EUR, base box fermée, parois évasées, fronton rect arrondi ═══
+  while (plvGroup.children.length) plvGroup.remove(plvGroup.children[0]);
+  const d = computeDims(), sc = 0.001;
+  const W=d.plvW*sc, D=d.plvD*sc, t=S.wallT*sc;
+  const palH = 144 * sc;                // hauteur palette EUR
+  const baseH = (S.baseH || 600) * sc;  // base box fermée
+  const shelvesH_total = (S.plvH ? S.plvH*sc : (1.0)) - palH - baseH;
+  const fH = (S.frontonH || 400) * sc;
+  const lip = S.shelfLip * sc, sT = d.shelfT * sc;
+  const pW = S.prodW * sc, pD = S.prodD * sc, pH = S.prodH * sc;
+  const mat = cyberMat;
+  const cre = hexToInt(V.plvCrease);
+
+  // ─── PALETTE EUR ───
+  const palGroup = new THREE.Group();
+  const palW = W * 1.06, palD = D * 1.10;
+  const plankT = 18 * sc;
+  // 3 longerons supérieurs (top deck planks, dans l'axe profondeur)
+  for (let i = 0; i < 3; i++) {
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(palW, plankT, palD * 0.30), mat());
+    plank.position.set(0, palH - plankT/2, (i - 1) * (palD * 0.36));
+    plank.castShadow = true; plank.receiveShadow = true;
+    addEdges(plank, cre, 0.6); palGroup.add(plank);
+  }
+  // 3 longerons inférieurs
+  for (let i = 0; i < 3; i++) {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(palW, plankT, palD * 0.18), mat());
+    beam.position.set(0, plankT/2, (i - 1) * (palD * 0.42));
+    beam.castShadow = true; beam.receiveShadow = true;
+    addEdges(beam, cre, 0.6); palGroup.add(beam);
+  }
+  // 9 dés d'écartement (3×3 grille)
+  const postH = palH - 2 * plankT, postS = 90 * sc;
+  for (let r = -1; r <= 1; r++) for (let c = -1; c <= 1; c++) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(postS, postH, postS), mat());
+    post.position.set(c * (palW/2 - postS/2 - plankT*0.2), plankT + postH/2, r * (palD * 0.42));
+    post.castShadow = true; post.receiveShadow = true;
+    addEdges(post, cre, 0.55); palGroup.add(post);
+  }
+  plvGroup.add(palGroup);
+
+  // ─── BASE BOX FERMÉE ───
+  const baseGroup = new THREE.Group();
+  baseGroup.position.y = palH;
+  // façade
+  const front = new THREE.Mesh(new THREE.BoxGeometry(W, baseH, t), mat());
+  front.position.set(0, baseH/2, D/2 - t/2);
+  front.castShadow = true; addEdges(front, cre, 0.6); baseGroup.add(front);
+  // dos
+  const backB = new THREE.Mesh(new THREE.BoxGeometry(W, baseH, t), mat());
+  backB.position.set(0, baseH/2, -D/2 + t/2);
+  backB.castShadow = true; addEdges(backB, cre, 0.6); baseGroup.add(backB);
+  // côtés
+  for (const s of [-1, 1]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(t, baseH, D), mat());
+    wall.position.set(s * (W/2 - t/2), baseH/2, 0);
+    wall.castShadow = true; addEdges(wall, cre, 0.6); baseGroup.add(wall);
+  }
+  // dessus (fermé)
+  const topB = new THREE.Mesh(new THREE.BoxGeometry(W, t, D), mat());
+  topB.position.set(0, baseH - t/2, 0);
+  topB.castShadow = true; addEdges(topB, cre, 0.55); baseGroup.add(topB);
+  plvGroup.add(baseGroup);
+
+  // ─── ZONE ÉTAGÈRES (parois latérales évasées) ───
+  const shelvesGroup = new THREE.Group();
+  shelvesGroup.position.y = palH + baseH;
+  const shH = shelvesH_total > 0.2 ? shelvesH_total : 0.7;
+
+  // Dos (vertical)
+  const sBack = new THREE.Mesh(new THREE.BoxGeometry(W, shH, t), mat());
+  sBack.position.set(0, shH/2, -D/2 + t/2);
+  sBack.castShadow = true; addEdges(sBack, cre, 0.6); shelvesGroup.add(sBack);
+
+  // Parois latérales en trapèze (évasées vers le haut : front rentre vers le dos en montant)
+  for (const s of [-1, 1]) {
+    const shape = new THREE.Shape();
+    shape.moveTo(-D/2, 0);                      // bottom-back
+    shape.lineTo(D/2 - t, 0);                   // bottom-front
+    shape.lineTo(-D/2 + D * 0.35, shH);         // top-front (rentré)
+    shape.lineTo(-D/2, shH);                    // top-back
+    shape.closePath();
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: false });
+    const wall = new THREE.Mesh(geo, mat());
+    wall.rotation.y = Math.PI / 2;
+    wall.position.set(s * (W/2 - t/2 + (s > 0 ? t : 0)), 0, 0);
+    if (s > 0) wall.position.x = W/2 - t/2;
+    if (s < 0) wall.position.x = -W/2 + t/2;
+    wall.castShadow = true;
+    addEdges(wall, cre, 0.55);
+    shelvesGroup.add(wall);
+  }
+
+  // 3 étagères avec lèvre frontale (équidistribuées)
+  const nbShelves = Math.max(1, Math.min(6, S.nbShelves || 3));
+  const shelfStep = shH / (nbShelves + 0.4);
+  for (let i = 0; i < nbShelves; i++) {
+    const sY = (i + 0.6) * shelfStep;
+    // Profondeur étagère diminue avec la hauteur (parois évasées)
+    const ratio = sY / shH;
+    const shelfD = D * (1 - ratio * 0.35);
+    const shelfZ = -D/2 + t + shelfD/2;
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(W - 2*t, sT, shelfD - t), mat());
+    shelf.position.set(0, sY, shelfZ);
+    shelf.castShadow = true; shelf.receiveShadow = true;
+    addEdges(shelf, cre, 0.55); shelvesGroup.add(shelf);
+    // Lèvre frontale
+    if (lip > 0.001) {
+      const lp = new THREE.Mesh(new THREE.BoxGeometry(W - 2*t, lip, sT), mat());
+      lp.position.set(0, sY + sT/2 + lip/2, shelfZ + (shelfD - t)/2);
+      lp.castShadow = true; addEdges(lp, cre, 0.46);
+      shelvesGroup.add(lp);
+    }
+    // Produits (pack sirop) sur chaque étagère
+    for (let f = 0; f < S.facing; f++) for (let dp = 0; dp < S.prodDepth; dp++) {
+      const innerW = W - 2*t;
+      const innerD = shelfD - t;
+      if ((f + 0.5) * pW > innerW || (dp + 0.5) * pD > innerD) continue;
+      const px = -innerW/2 + (f + 0.5) * pW;
+      const py = sY + sT/2 + pH/2;
+      const pz = shelfZ - innerD/2 + (dp + 0.5) * pD;
+      const pm = new THREE.MeshPhysicalMaterial({
+        color: hexToInt(V.prodBody), roughness: 0.7, metalness: 0.0,
+        clearcoat: 0.0, envMapIntensity: 0.0,
+        transparent: true, opacity: 0.4
+      });
+      const prod = new THREE.Mesh(new THREE.BoxGeometry(pW*0.97, pH*0.98, pD*0.97), pm);
+      prod.position.set(px, py, pz);
+      prod.castShadow = true; prod.receiveShadow = true;
+      addEdges(prod, hexToInt(V.prodCrease), 0.78);
+      const lbl = new THREE.Mesh(new THREE.PlaneGeometry(pW*0.7, pH*0.22),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.05 }));
+      lbl.position.set(0, pH*0.08, pD/2*0.97 + 0.0004);
+      prod.add(lbl);
+      plvGroup.add(prod);
+    }
+  }
+  plvGroup.add(shelvesGroup);
+
+  // ─── FRONTON RECTANGULAIRE À COINS ARRONDIS HAUT ───
+  const frontonGroup = new THREE.Group();
+  frontonGroup.position.y = palH + baseH + shH;
+  // Forme : rect avec coins haut arrondis (path 2D + ExtrudeGeometry)
+  const frW = W * 0.78, hw = frW/2;
+  const r = Math.min(frW * 0.18, fH * 0.22);
+  const fShape = new THREE.Shape();
+  fShape.moveTo(-hw, 0);
+  fShape.lineTo(hw, 0);
+  fShape.lineTo(hw, fH - r);
+  fShape.quadraticCurveTo(hw, fH, hw - r, fH);
+  fShape.lineTo(-hw + r, fH);
+  fShape.quadraticCurveTo(-hw, fH, -hw, fH - r);
+  fShape.lineTo(-hw, 0);
+  fShape.closePath();
+  const fronton = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(fShape, { depth: t * 1.6, bevelEnabled: false }),
+    mat()
+  );
+  fronton.position.set(0, 0, -D/2 + t * 0.5);
+  fronton.castShadow = true; addEdges(fronton, cre, 0.6);
+  frontonGroup.add(fronton);
+  plvGroup.add(frontonGroup);
+
+  const techFill = new THREE.DirectionalLight(0xffffff, 0.16);
+  techFill.position.set(-2, 3, 1.2);
+  plvGroup.add(techFill);
+}
+
+// ═══════════════════════════════════════════════════════
+// PACKAGING 3D — CYBERPUNK
+// ═══════════════════════════════════════════════════════
+function buildPackaging() {
+  while (plvGroup.children.length) plvGroup.remove(plvGroup.children[0]);
+  const sc = 0.001;
+  const L = P.boxW * sc, D = P.boxD * sc, H = P.boxH * sc;
+  const th = Math.max(L, D, H) * 0.008;
+
+  const roughness = P.finish === 'mat' ? 0.5 : P.finish === 'satine' ? 0.2 : 0.02;
+  const creaseColor = hexToInt(V.packCrease);
+  const base = new THREE.Color(V.packBase);
+  const gradA = base.clone().multiplyScalar(0.42);
+  const gradB = base.clone().lerp(new THREE.Color(0xffffff), 0.22);
+  const gradHex = t => gradA.clone().lerp(gradB, t).getHex();
+  const packMat = t => new THREE.MeshPhysicalMaterial({
+    color: gradHex(t), roughness: Math.max(0.3, roughness), metalness: 0.06,
+    clearcoat: 0.06, clearcoatRoughness: 0.85,
+    envMapIntensity: 0.12, reflectivity: 0.15,
+    transparent: true, opacity: 0.5
+  });
+  const innerMat = new THREE.MeshStandardMaterial({
+    color: gradHex(0.22), roughness: 0.95, metalness: 0.0, transparent: true, opacity: 0.22
+  });
+
+  const box = new THREE.Group();
+  const edgeColor = creaseColor;
+
+  const front = new THREE.Mesh(new THREE.BoxGeometry(L, H, th), packMat(0.08));
+  front.position.set(0, H / 2, D / 2); front.castShadow = true; front.receiveShadow = true;
+  addEdges(front, edgeColor, 0.52); box.add(front);
+
+  const backPanel = new THREE.Mesh(new THREE.BoxGeometry(L, H, th), packMat(0.9));
+  backPanel.position.set(0, H / 2, -D / 2); backPanel.castShadow = true; backPanel.receiveShadow = true;
+  addEdges(backPanel, edgeColor, 0.42); box.add(backPanel);
+
+  const sideGeo = new THREE.BoxGeometry(th, H, D + th * 2);
+  const leftSide = new THREE.Mesh(sideGeo, packMat(0.25));
+  leftSide.position.set(-L / 2, H / 2, 0); leftSide.castShadow = true;
+  addEdges(leftSide, creaseColor, 0.46); box.add(leftSide);
+  const rightSide = new THREE.Mesh(sideGeo, packMat(0.68));
+  rightSide.position.set(L / 2, H / 2, 0); rightSide.castShadow = true;
+  addEdges(rightSide, edgeColor, 0.46); box.add(rightSide);
+
+  const bottom = new THREE.Mesh(new THREE.BoxGeometry(L + th * 2, th, D + th * 2), packMat(0.5));
+  bottom.position.set(0, th / 2, 0); addEdges(bottom, creaseColor, 0.34); box.add(bottom);
+
+  const dustLen = L * 0.42;
+  const dustGeo = new THREE.BoxGeometry(dustLen, th, D);
+  const dustL = new THREE.Mesh(dustGeo, innerMat);
+  dustL.position.set(-L / 2 + dustLen / 2, H + th * 0.5, 0);
+  addEdges(dustL, creaseColor, 0.42); box.add(dustL);
+  const dustR = new THREE.Mesh(dustGeo, innerMat);
+  dustR.position.set(L / 2 - dustLen / 2, H + th * 0.5, 0);
+  addEdges(dustR, creaseColor, 0.42); box.add(dustR);
+
+  const backFlapLen = D * 0.78;
+  const backFlapGeo = new THREE.BoxGeometry(L - th * 2, th, backFlapLen);
+  const backFlap = new THREE.Mesh(backFlapGeo, packMat(0.82));
+  backFlap.position.set(0, H + th * 1.5, -D / 2 + backFlapLen / 2);
+  backFlap.castShadow = true; addEdges(backFlap, edgeColor, 0.45); box.add(backFlap);
+
+  const tuckLen = D * 0.72;
+  const tW = L - th * 2;
+  const thw = tW / 2;
+  const cr = Math.min(thw, tuckLen) * 0.12;
+  const tShape = new THREE.Shape();
+  tShape.moveTo(-thw, 0); tShape.lineTo(thw, 0);
+  tShape.lineTo(thw, -tuckLen + cr);
+  tShape.quadraticCurveTo(thw, -tuckLen, thw - cr, -tuckLen);
+  tShape.lineTo(-thw + cr, -tuckLen);
+  tShape.quadraticCurveTo(-thw, -tuckLen, -thw, -tuckLen + cr);
+  tShape.closePath();
+  const tuckGeo = new THREE.ExtrudeGeometry(tShape, { depth: th, bevelEnabled: false });
+  const tuck = new THREE.Mesh(tuckGeo, packMat(0.2));
+  tuck.rotation.x = Math.PI / 2;
+  tuck.position.set(0, H + th * 2.5, D / 2);
+  tuck.castShadow = true; addEdges(tuck, edgeColor, 0.5); box.add(tuck);
+
+  const bottomFlap = new THREE.Mesh(new THREE.BoxGeometry(L, th, D), packMat(0.45));
+  bottomFlap.position.set(0, th, 0); addEdges(bottomFlap, creaseColor, 0.34); box.add(bottomFlap);
+
+  const lineMat = (color, op) => new THREE.LineBasicMaterial({ color, transparent: true, opacity: op });
+  function ln(a, b, color = creaseColor, op = 0.35) {
+    const g = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(...a), new THREE.Vector3(...b)]);
+    box.add(new THREE.Line(g, lineMat(color, op)));
+  }
+  const e = 0.0004;
+  ln([-L/2, 0, D/2+th/2+e], [-L/2, H, D/2+th/2+e], creaseColor, 0.5);
+  ln([L/2, 0, D/2+th/2+e], [L/2, H, D/2+th/2+e], creaseColor, 0.5);
+  ln([-L/2-th/2-e, 0, -D/2], [-L/2-th/2-e, H, -D/2], creaseColor, 0.35);
+  ln([L/2+th/2+e, 0, -D/2], [L/2+th/2+e, H, -D/2], creaseColor, 0.35);
+  ln([-L/2, H+e, D/2+th/2], [L/2, H+e, D/2+th/2], creaseColor, 0.55);
+  ln([-L/2, H+e, -D/2-th/2], [L/2, H+e, -D/2-th/2], creaseColor, 0.4);
+  ln([-thw*0.92, H - H*0.012, D/2+th/2+e], [thw*0.92, H - H*0.012, D/2+th/2+e], creaseColor, 0.5);
+
+  const m = Math.max(L, D, H);
+  const spot = new THREE.SpotLight(0xffffff, 1.1, m * 15, Math.PI / 5, 0.7, 1.2);
+  spot.position.set(m * 1.5, m * 5, m * 2.5);
+  spot.target.position.set(0, H * 0.35, 0);
+  spot.castShadow = true; spot.shadow.mapSize.set(1024, 1024); spot.shadow.bias = -0.001;
+  box.add(spot); box.add(spot.target);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.14);
+  fill.position.set(-m * 1.2, m * 1.8, m * 0.8);
+  box.add(fill);
+
+  plvGroup.add(box);
+  camera.position.set(m * 2.5, m * 1.6, m * 3.2);
+  controls.target.set(0, H * 0.42, 0);
+  drawDieline(P.boxW, P.boxD, P.boxH);
+}
+
+// ═══════════════════════════════════════════════════════
+// DIELINE 2D — CYBERPUNK
+// ═══════════════════════════════════════════════════════
+function drawDieline(bW, bD, bH) {
+  let cvs = document.getElementById('dielineCanvas');
+  if (!cvs) return;
+  const ctx = cvs.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const cw = cvs.parentElement.clientWidth;
+  const ch = 260;
+  cvs.style.width = cw + 'px'; cvs.style.height = ch + 'px';
+  cvs.width = cw * dpr; cvs.height = ch * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, cw, ch);
+  ctx.fillStyle = '#0A0A0F'; ctx.fillRect(0, 0, cw, ch);
+
+  const glue = bD * 0.35;
+  const totalW = glue + bD + bW + bD + bW;
+  const flapH = bD * 0.72;
+  const dustH = bW * 0.42;
+  const totalH = flapH + bH + flapH;
+  const pad = 16;
+  const sc = Math.min((cw - pad * 2) / totalW, (ch - pad * 2) / totalH);
+  const ox = (cw - totalW * sc) / 2;
+  const oy = (ch - totalH * sc) / 2;
+
+  function x(v) { return ox + v * sc; }
+  function y(v) { return oy + v * sc; }
+  function w(v) { return v * sc; }
+
+  const x0 = 0, x1 = glue, x2 = glue + bD, x3 = glue + bD + bW, x4 = glue + bD + bW + bD, x5 = totalW;
+  const y0 = 0, y1 = flapH, y2 = flapH + bH, y3 = totalH;
+
+  const creaseCss = V.packCrease;
+  ctx.fillStyle = hexToRgba(creaseCss, 0.03);
+  ctx.fillRect(x(x0), y(y1), w(totalW), w(bH));
+  ctx.fillStyle = hexToRgba(creaseCss, 0.02);
+  ctx.fillRect(x(x2), y(y0), w(bW), w(flapH));
+  ctx.fillRect(x(x4), y(y0), w(bW), w(flapH));
+  ctx.fillRect(x(x2), y(y2), w(bW), w(flapH));
+  ctx.fillRect(x(x4), y(y2), w(bW), w(flapH));
+  ctx.fillStyle = hexToRgba(creaseCss, 0.018);
+  ctx.fillRect(x(x1), y(y1 - dustH), w(bD), w(dustH));
+  ctx.fillRect(x(x3), y(y1 - dustH), w(bD), w(dustH));
+  ctx.fillRect(x(x1), y(y2), w(bD), w(dustH));
+  ctx.fillRect(x(x3), y(y2), w(bD), w(dustH));
+
+  ctx.strokeStyle = creaseCss; ctx.lineWidth = 1.2; ctx.setLineDash([]);
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+
+  ctx.beginPath();
+  const gt = glue * 0.7;
+  ctx.moveTo(x(x0 + (glue - gt)), y(y1 + bH * 0.06));
+  ctx.lineTo(x(x0), y(y1 + bH * 0.12));
+  ctx.lineTo(x(x0), y(y2 - bH * 0.12));
+  ctx.lineTo(x(x0 + (glue - gt)), y(y2 - bH * 0.06));
+  ctx.moveTo(x(x1), y(y1)); ctx.lineTo(x(x5), y(y1));
+  ctx.lineTo(x(x5), y(y2)); ctx.lineTo(x(x1), y(y2)); ctx.lineTo(x(x1), y(y1));
+  ctx.stroke();
+
+  ctx.beginPath();
+  const tcr = Math.min(bW, flapH) * 0.12 * sc;
+  ctx.moveTo(x(x2), y(y1)); ctx.lineTo(x(x2), y(y0) + tcr);
+  ctx.arcTo(x(x2), y(y0), x(x2) + tcr, y(y0), tcr);
+  ctx.lineTo(x(x3) - tcr, y(y0)); ctx.arcTo(x(x3), y(y0), x(x3), y(y0) + tcr, tcr);
+  ctx.lineTo(x(x3), y(y1)); ctx.stroke();
+
+  ctx.beginPath(); ctx.rect(x(x4), y(y1 - flapH * 0.78), w(bW), w(flapH * 0.78)); ctx.stroke();
+
+  for (const px of [x1, x3]) {
+    ctx.beginPath();
+    const dInset = bD * 0.1;
+    ctx.moveTo(x(px), y(y1)); ctx.lineTo(x(px), y(y1 - dustH));
+    ctx.lineTo(x(px + bD - dInset), y(y1 - dustH)); ctx.lineTo(x(px + bD), y(y1));
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(x(x2), y(y2)); ctx.lineTo(x(x2), y(y3) - tcr);
+  ctx.arcTo(x(x2), y(y3), x(x2) + tcr, y(y3), tcr);
+  ctx.lineTo(x(x3) - tcr, y(y3)); ctx.arcTo(x(x3), y(y3), x(x3), y(y3) - tcr, tcr);
+  ctx.lineTo(x(x3), y(y2)); ctx.stroke();
+  ctx.beginPath(); ctx.rect(x(x4), y(y2), w(bW), w(flapH * 0.78)); ctx.stroke();
+  for (const px of [x1, x3]) {
+    ctx.beginPath();
+    const dInset = bD * 0.1;
+    ctx.moveTo(x(px), y(y2)); ctx.lineTo(x(px), y(y2 + dustH));
+    ctx.lineTo(x(px + bD - dInset), y(y2 + dustH)); ctx.lineTo(x(px + bD), y(y2));
+    ctx.stroke();
+  }
+
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+  ctx.strokeStyle = creaseCss; ctx.lineWidth = 0.8; ctx.setLineDash([4, 3]);
+  for (const px of [x1, x2, x3, x4]) {
+    ctx.beginPath(); ctx.moveTo(x(px), y(y1)); ctx.lineTo(x(px), y(y2)); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(x(x1), y(y1)); ctx.lineTo(x(x5), y(y1)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x(x1), y(y2)); ctx.lineTo(x(x5), y(y2)); ctx.stroke();
+  ctx.setLineDash([]); ctx.shadowBlur = 0;
+
+  ctx.fillStyle = hexToRgba(creaseCss, 0.48);
+  ctx.font = '9px Rajdhani, system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const labels = [
+    [x0 + glue/2, y1 + bH/2, 'COLLE'], [x1 + bD/2, y1 + bH/2, 'COTE'],
+    [x2 + bW/2, y1 + bH/2, 'FACE'], [x3 + bD/2, y1 + bH/2, 'COTE'],
+    [x4 + bW/2, y1 + bH/2, 'DOS'],
+  ];
+  for (const [lx, ly, txt] of labels) { ctx.fillText(txt, x(lx), y(ly)); }
+  ctx.fillStyle = hexToRgba(creaseCss, 0.38);
+  ctx.font = '8px Rajdhani, system-ui, sans-serif';
+  ctx.fillText(bW + ' mm', x(x2 + bW/2), y(y2 + flapH + 4/sc));
+  ctx.fillText(bD + ' mm', x(x1 + bD/2), y(y2 + flapH + 4/sc));
+  ctx.fillText(bH + ' mm', x(x5 + 10/sc), y(y1 + bH/2));
+}
+
+// ═══════════════════════════════════════════════════════
+// UI UPDATES
+// ═══════════════════════════════════════════════════════
+function updatePlvUI() {
+  const d = computeDims();
+  document.getElementById('vFacing').textContent = S.facing;
+  document.getElementById('vProdDepth').textContent = S.prodDepth;
+  document.getElementById('vShelves').textContent = S.nbShelves;
+  document.getElementById('totalCap').textContent = d.total;
+  document.getElementById('synthDims').textContent =
+    `${d.innerW} \u00d7 ${d.innerD} \u00d7 ${Math.round(d.totalH)} mm`;
+  document.getElementById('synthDetail').textContent =
+    `${S.facing} facing \u00d7 ${S.prodDepth} prof. \u00d7 ${S.nbShelves} etageres`;
+  document.getElementById('dW').textContent = d.innerW;
+  document.getElementById('slDimW').value = d.innerW;
+  document.getElementById('dD').textContent = d.innerD;
+  document.getElementById('slDimD').value = d.innerD;
+  document.getElementById('dH').textContent = Math.round(d.plvH);
+  document.getElementById('slDimH').value = d.plvH;
+  document.getElementById('dF').textContent = S.frontonH;
+  document.getElementById('slDimF').value = S.frontonH;
+  document.getElementById('ppW').textContent = S.prodW;
+  document.getElementById('slPersoW').value = S.prodW;
+  document.getElementById('ppD').textContent = S.prodD;
+  document.getElementById('slPersoD').value = S.prodD;
+  document.getElementById('ppH').textContent = S.prodH;
+  document.getElementById('slPersoH').value = S.prodH;
+  document.getElementById('pBase').textContent = S.baseH;
+  document.getElementById('slBase').value = S.baseH;
+  document.getElementById('pLip').textContent = S.shelfLip;
+  document.getElementById('slLip').value = S.shelfLip;
+  document.getElementById('pHead').textContent = S.headroom;
+  document.getElementById('slHead').value = S.headroom;
+  document.getElementById('pShape').textContent = ['Droit','Arrondi','Pointe'][S.frontonShape];
+  document.getElementById('slShape').value = S.frontonShape;
+}
+
+function updatePackUI() {
+  document.getElementById('bW').textContent = P.boxW;
+  document.getElementById('slBoxW').value = P.boxW;
+  document.getElementById('bD').textContent = P.boxD;
+  document.getElementById('slBoxD').value = P.boxD;
+  document.getElementById('bH').textContent = P.boxH;
+  document.getElementById('slBoxH').value = P.boxH;
+  document.getElementById('packDimsDisplay').textContent =
+    `${P.boxW} \u00d7 ${P.boxD} \u00d7 ${P.boxH} mm`;
+  const labels = { offset:'Offset', numerique:'Numerique', serigraphie:'Serigraphie',
+    mat:'Mat', brillant:'Brillant', satine:'Satine' };
+  document.getElementById('packSynthSub').textContent =
+    `${labels[P.printType]} | ${labels[P.finish]}`;
+}
+
+// ═══════════════════════════════════════════════════════
+// REBUILD
+// ═══════════════════════════════════════════════════════
+let timer = null;
+function rebuildPLV() {
+  clearTimeout(timer);
+  timer = setTimeout(() => { buildPLV(); updatePlvUI(); }, 25);
+}
+function rebuildPack() {
+  clearTimeout(timer);
+  timer = setTimeout(() => { buildPackaging(); updatePackUI(); }, 25);
+}
+
+// ═══════════════════════════════════════════════════════
+// BINDINGS — PLV
+// ═══════════════════════════════════════════════════════
+document.getElementById('slDimW').addEventListener('input', e => {
+  S.facing = Math.max(1, Math.min(20, Math.round(parseFloat(e.target.value) / S.prodW)));
+  rebuildPLV();
+});
+document.getElementById('slDimD').addEventListener('input', e => {
+  S.prodDepth = Math.max(1, Math.min(12, Math.round(parseFloat(e.target.value) / S.prodD)));
+  rebuildPLV();
+});
+document.getElementById('slDimH').addEventListener('input', e => {
+  const d = computeDims();
+  S.nbShelves = Math.max(1, Math.min(8, Math.round((parseFloat(e.target.value) - S.baseH) / d.shelfSpacing)));
+  rebuildPLV();
+});
+document.getElementById('slDimF').addEventListener('input', e => {
+  S.frontonH = parseFloat(e.target.value);
+  rebuildPLV();
+});
+
+['slPersoW','slPersoD','slPersoH'].forEach((id, i) => {
+  const keys = ['prodW','prodD','prodH'];
+  const displays = ['ppW','ppD','ppH'];
+  document.getElementById(id).addEventListener('input', e => {
+    S[keys[i]] = parseFloat(e.target.value);
+    document.getElementById(displays[i]).textContent = S[keys[i]];
+    rebuildPLV();
+  });
+});
+
+const SHAPES = ['Droit','Arrondi','Pointe'];
+function bp(id, key, did, fmt) {
+  document.getElementById(id).addEventListener('input', e => {
+    S[key] = parseFloat(e.target.value);
+    document.getElementById(did).textContent = fmt ? fmt(S[key]) : S[key];
+    rebuildPLV();
+  });
+}
+bp('slBase','baseH','pBase'); bp('slLip','shelfLip','pLip');
+bp('slHead','headroom','pHead'); bp('slShape','frontonShape','pShape', v => SHAPES[v]);
+
+// ═══════════════════════════════════════════════════════
+// BINDINGS — PACKAGING
+// ═══════════════════════════════════════════════════════
+['slBoxW','slBoxD','slBoxH'].forEach((id, i) => {
+  const keys = ['boxW','boxD','boxH'];
+  const displays = ['bW','bD','bH'];
+  document.getElementById(id).addEventListener('input', e => {
+    P[keys[i]] = parseFloat(e.target.value);
+    document.getElementById(displays[i]).textContent = P[keys[i]];
+    rebuildPack();
+  });
+});
+
+initOptionGroup('grpPrint', P, 'printType', rebuildPack);
+initOptionGroup('grpFinish', P, 'finish', rebuildPack);
+initOptionGroup('grpPaper', P, 'paper', rebuildPack);
+initColorGroup();
+initTags();
+initVisualControls();
+
+// ═══════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════
+function onResize() {
+  const vp = document.querySelector('.viewport');
+  camera.aspect = vp.clientWidth / vp.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(vp.clientWidth, vp.clientHeight);
+  if (currentMode === 'pack') drawDieline(P.boxW, P.boxD, P.boxH);
+}
+window.addEventListener('resize', onResize);
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+applyVisualPreset('light_navy');
+buildPLV(); updatePlvUI(); onResize(); animate();
+
+window.sendDevis = function() {
+  var rows = [
+    ['Societe', 'qCompany'], ['Telephone','qPhone'], ['Description','qProductDesc'],
+    ['Quantite','qQty'], ['Conditionnement','qConditioning'], ['Livraison','qDeliveryPlace'],
+    ['Deadline','qDeadline'], ['Brief','qBrief']
+  ].map(function(r){ var el=document.getElementById(r[1]); return el&&el.value.trim()?r[0]+': '+el.value:''; })
+   .filter(Boolean);
+  if (rows.length < 2) { showToast('Remplissez au moins vos coordonnees et le brief.'); return; }
+  window.open('mailto:jeremy@multi-poles.net?subject=Demande devis PLV Packaging Multipoles&body='+rows.join('%0A'), '_blank');
+  showToast('Ouverture messagerie...');
+};
+var TLBL = {pharma:'Pharma',pharma_clair:'Pharma clair',cosmetique:'Cosmetique',sunset:'Warm pro',cobalt:'Tech cobalt',jour_neutre:'Jour neutre',tech:'Tech',neutral:'Studio neutre',full_white:'Full White',navy_glass:'Navy Glass',light_navy:'Light Navy',minimal:'Minimal'};
+window.iaInspire = async function() {
+  var el = document.getElementById('qBrief');
+  var brief = el ? el.value.trim() : '';
+  if (!brief) { showToast('Decrivez votre projet dans le brief.'); return; }
+  var btn=document.getElementById('btnIA'), panel=document.getElementById('iaProposals');
+  btn.disabled=true; btn.innerHTML='<span>&#8987;</span><span>Analyse en cours...</span>';
+  panel.classList.remove('show'); panel.innerHTML='';
+  try {
+    var res = await fetch('/api/studio/ai-propose',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brief:brief})});
+    var data = await res.json();
+    if (!res.ok||!data.proposals) throw new Error(data.error||'Erreur IA');
+    panel.innerHTML = data.proposals.map(function(p,i){
+      var sp=JSON.stringify(p).replace(/"/g,String.fromCharCode(39));
+      return '<div class="ia-card" onclick="applyIAProposal('+i+')" data-proposal=\''+sp+'\'>'+
+        '<div class="ia-card-type">'+(p.type==='plv'?'PLV de sol':'Packaging')+' &middot; '+(TLBL[p.theme]||p.theme)+'</div>'+
+        '<div class="ia-card-title">'+p.titre+'</div>'+
+        '<div class="ia-card-desc">'+p.description+'</div></div>';
+    }).join('');
+    panel.classList.add('show');
+    showToast('3 propositions generees - cliquez pour configurer !');
+  } catch(e) { showToast('Erreur : '+e.message); }
+  finally { btn.disabled=false; btn.innerHTML='<span>&#10024;</span><span>IA : Inspire-moi</span>'; }
+};
+window.applyIAProposal = function(i) {
+  var cards=document.querySelectorAll('.ia-card');
+  cards.forEach(function(c,j){c.classList.toggle('selected',j===i);});
+  var p=JSON.parse(cards[i].dataset.proposal.replace(/'/g,'"')), c=p.config;
+  if(p.theme) window.applyVisualPreset(p.theme);
+  var set=function(id,v){var e=document.getElementById(id);if(e)e.value=v;};
+  if(p.type==='plv'){
+    window.setMode('plv');
+    if(c.prodW){S.prodW=c.prodW;set('slPersoW',c.prodW);}
+    if(c.prodD){S.prodD=c.prodD;set('slPersoD',c.prodD);}
+    if(c.prodH){S.prodH=c.prodH;set('slPersoH',c.prodH);}
+    if(c.facing) S.facing=c.facing;
+    if(c.prodDepth) S.prodDepth=c.prodDepth;
+    if(c.nbShelves) S.nbShelves=c.nbShelves;
+    if(c.baseH){S.baseH=c.baseH;set('slBase',c.baseH);}
+    if(c.frontonH){S.frontonH=c.frontonH;set('slDimF',c.frontonH);}
+    rebuildPLV();
+  } else {
+    window.setMode('pack');
+    if(c.boxW){P.boxW=c.boxW;set('slBoxW',c.boxW);}
+    if(c.boxD){P.boxD=c.boxD;set('slBoxD',c.boxD);}
+    if(c.boxH){P.boxH=c.boxH;set('slBoxH',c.boxH);}
+    if(c.printType) P.printType=c.printType;
+    if(c.finish) P.finish=c.finish;
+    if(c.paper) P.paper=c.paper;
+    rebuildPack();
+  }
+  showToast('Configuration appliquee - personnalisez les details !');
+};
+
+// ═══════════════════════════════════════════════════════
+// BRIEF SUMMARY + DEMANDE DE PRIX
+// ═══════════════════════════════════════════════════════
+var uploadedFiles = [];
+
+function setBriefContent(lines) {
+  var el = document.getElementById('briefSummary');
+  el.textContent = '';
+  lines.forEach(function(line, i) {
+    if (i > 0) el.appendChild(document.createElement('br'));
+    el.appendChild(document.createTextNode(line));
+  });
+}
+
+function setFileListContent() {
+  var list = document.getElementById('fileList');
+  list.textContent = '';
+  uploadedFiles.forEach(function(f, i) {
+    var div = document.createElement('div');
+    div.className = 'file-item';
+    var span = document.createElement('span');
+    span.textContent = f.name + ' (' + (f.size/1024).toFixed(0) + ' Ko)';
+    var rm = document.createElement('span');
+    rm.className = 'remove';
+    rm.textContent = '\u00d7';
+    rm.onclick = function() { removeFile(i); };
+    div.appendChild(span);
+    div.appendChild(rm);
+    list.appendChild(div);
+  });
+}
+
+window.preparerDemande = function() {
+  var dims = computeDims();
+  var mode = currentMode === 'plv' ? 'PLV de sol' : 'Packaging';
+  var lines = [mode];
+  if (currentMode === 'plv') {
+    lines.push(dims.plvW + ' x ' + dims.plvD + ' x ' + dims.plvH + ' mm');
+    lines.push(S.facing + ' facing, ' + S.prodDepth + ' prof., ' + S.nbShelves + ' etageres');
+    lines.push('Produit: ' + S.prodW + 'x' + S.prodD + 'x' + S.prodH + ' mm');
+    lines.push('Total: ' + (S.facing * S.prodDepth * S.nbShelves) + ' produits');
+  } else {
+    lines.push(P.boxW + ' x ' + P.boxD + ' x ' + P.boxH + ' mm');
+    lines.push('Impression: ' + P.printType + ', Finition: ' + P.finish);
+    lines.push('Papier: ' + P.paper + ', Couleurs: ' + P.colors);
+  }
+  var company = document.getElementById('qCompany');
+  var phone = document.getElementById('qPhone');
+  var brief = document.getElementById('qBrief');
+  if (company && company.value) lines.push('Societe: ' + company.value);
+  if (phone && phone.value) lines.push('Tel: ' + phone.value);
+  if (brief && brief.value) lines.push('Brief: ' + brief.value);
+  if (uploadedFiles.length) lines.push('Fichiers: ' + uploadedFiles.map(function(f){return f.name;}).join(', '));
+  setBriefContent(lines);
+  showToast('Resume genere — verifiez puis cliquez ENVOYER');
+};
+
+window.envoyerDemande = function() {
+  var el = document.getElementById('briefSummary');
+  var text = el.textContent || '';
+  if (!text || text.length < 20) { showToast('Cliquez d\'abord DEMANDE DE PRIX pour generer le resume.'); return; }
+  var subject = 'Demande de prix ' + (currentMode === 'plv' ? 'PLV' : 'Packaging') + ' — Multipoles 3D Studio';
+  var body = text.replace(/\n/g, '%0A');
+  window.open('mailto:jeremy@multi-poles.net?subject=' + encodeURIComponent(subject) + '&body=' + body, '_blank');
+  showToast('Ouverture messagerie...');
+};
+
+window.handleFileUpload = function(event) {
+  var files = Array.from(event.target.files);
+  files.forEach(function(f) { uploadedFiles.push(f); });
+  setFileListContent();
+  showToast(files.length + ' fichier(s) ajoute(s)');
+};
+
+window.removeFile = function(index) {
+  uploadedFiles.splice(index, 1);
+  setFileListContent();
+};
+
+// ═══════════════════════════════════════════════════════
+// MOBILE PATCH — fit caméra à la PLV + dock minimal
+// ═══════════════════════════════════════════════════════
+(function mobilePatch() {
+  const isMobile = () => window.innerWidth <= 768;
+  const isPortrait = () => window.innerHeight > window.innerWidth;
+
+  // Track user interaction so we don't override zoom/pan
+  let userInteracted = false;
+  let lastViewportSig = '';
+  controls.addEventListener('start', () => { userInteracted = true; });
+
+  function viewportSig() {
+    return window.innerWidth + 'x' + window.innerHeight + ':' + (isPortrait() ? 'p' : 'l');
+  }
+
+  function fitCameraToPLV(force = false) {
+    if (!plvGroup || plvGroup.children.length === 0) return;
+    const box = new THREE.Box3().setFromObject(plvGroup);
+    if (box.isEmpty()) return;
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    const aspect = window.innerWidth / window.innerHeight;
+    const margin = isMobile() ? 1.18 : 1.35;
+
+    if (isMobile() && isPortrait()) {
+      camera.fov = 42;
+    } else if (isMobile()) {
+      camera.fov = 38;
+    } else {
+      camera.fov = 32;
+    }
+    camera.aspect = aspect;
+    camera.updateProjectionMatrix();
+
+    if (!force && userInteracted) {
+      // Don't reset camera position, keep user's zoom/angle
+      // Just keep the target on the PLV center to avoid drift on rebuild
+      controls.target.lerp(center, 0.05);
+      controls.update();
+      return;
+    }
+
+    const fovRad = camera.fov * Math.PI / 180;
+    const distV = (size.y / 2) / Math.tan(fovRad / 2);
+    const distH = (size.x / 2) / Math.tan(fovRad / 2) / Math.max(0.4, aspect);
+    const dist = Math.max(distV, distH) * margin;
+
+    const dir = new THREE.Vector3(0.5, 0.18, 1).normalize();
+    camera.position.copy(center).add(dir.multiplyScalar(dist));
+    controls.target.copy(center);
+    controls.minDistance = dist * 0.3;
+    controls.maxDistance = dist * 4;
+    controls.update();
+    userInteracted = false;
+    lastViewportSig = viewportSig();
+  }
+  window.fitCameraToPLV = fitCameraToPLV;
+
+  // Wrap build functions: refit only when geometry changes (force=true)
+  try {
+    const _origBuildPLV = buildPLV;
+    buildPLV = function() {
+      _origBuildPLV.apply(this, arguments);
+      // Re-center on new geometry but keep user zoom if any
+      fitCameraToPLV(false);
+    };
+  } catch(e) {}
+  try {
+    if (typeof buildPackaging === 'function') {
+      const _origBuildPack = buildPackaging;
+      buildPackaging = function() {
+        _origBuildPack.apply(this, arguments);
+        fitCameraToPLV(false);
+      };
+    }
+  } catch(e) {}
+
+  // Resize handler — only update aspect (avoid resetting camera on iOS Safari address bar toggle)
+  function handleResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    // Keep target on PLV center to avoid drift
+    if (plvGroup && plvGroup.children.length > 0) {
+      const box = new THREE.Box3().setFromObject(plvGroup);
+      if (!box.isEmpty()) controls.target.copy(box.getCenter(new THREE.Vector3()));
+    }
+    // Trigger full fit only if orientation changed (portrait <-> landscape)
+    const sig = viewportSig();
+    const wasP = lastViewportSig.endsWith(':p');
+    const isP = sig.endsWith(':p');
+    if (wasP !== isP) {
+      // Orientation flipped — full re-fit
+      userInteracted = false;
+      fitCameraToPLV(true);
+    }
+    lastViewportSig = sig;
+  }
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(handleResize, 80);
+  });
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => { userInteracted = false; fitCameraToPLV(true); }, 250);
+  });
+
+  // Initial fit (force, delayed to ensure first build is done)
+  setTimeout(() => fitCameraToPLV(true), 100);
+  setTimeout(() => fitCameraToPLV(true), 400);
+
+  // Mobile dock — inject HTML + wire buttons
+  if (!document.getElementById('mobile-dock')) {
+    const dock = document.createElement('div');
+    dock.id = 'mobile-dock';
+    dock.innerHTML = ''
+      + '<div class="group">'
+      +   '<span class="label">Étagères</span>'
+      +   '<div class="row">'
+      +     '<button data-act="shelf-minus" aria-label="Moins étagère">−</button>'
+      +     '<span class="val" id="m-shelves">' + (typeof S !== "undefined" ? S.nbShelves : 4) + '</span>'
+      +     '<button data-act="shelf-plus" aria-label="Plus étagère">+</button>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="sep"></div>'
+      + '<div class="group">'
+      +   '<span class="label">Facing</span>'
+      +   '<div class="row">'
+      +     '<button data-act="facing-minus" aria-label="Moins facing">−</button>'
+      +     '<span class="val" id="m-facing">' + (typeof S !== "undefined" ? S.facing : 4) + '</span>'
+      +     '<button data-act="facing-plus" aria-label="Plus facing">+</button>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="sep"></div>'
+      + '<div class="group">'
+      +   '<span class="label">Profondeur</span>'
+      +   '<div class="row">'
+      +     '<button data-act="depth-minus" aria-label="Moins profondeur">−</button>'
+      +     '<span class="val" id="m-depth">' + (typeof S !== "undefined" ? S.prodDepth : 4) + '</span>'
+      +     '<button data-act="depth-plus" aria-label="Plus profondeur">+</button>'
+      +   '</div>'
+      + '</div>';
+    document.body.appendChild(dock);
+
+    function syncDock() {
+      const sv = document.getElementById('m-shelves');
+      const fv = document.getElementById('m-facing');
+      const dv = document.getElementById('m-depth');
+      if (sv && typeof S !== 'undefined') sv.textContent = S.nbShelves;
+      if (fv && typeof S !== 'undefined') fv.textContent = S.facing;
+      if (dv && typeof S !== 'undefined') dv.textContent = S.prodDepth;
+    }
+
+    dock.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const act = btn.dataset.act;
+      if (typeof S === 'undefined') return;
+      if (act === 'shelf-plus' && S.nbShelves < 8) S.nbShelves++;
+      else if (act === 'shelf-minus' && S.nbShelves > 1) S.nbShelves--;
+      else if (act === 'facing-plus' && S.facing < 12) S.facing++;
+      else if (act === 'facing-minus' && S.facing > 1) S.facing--;
+      else if (act === 'depth-plus' && S.prodDepth < 6) S.prodDepth++;
+      else if (act === 'depth-minus' && S.prodDepth > 1) S.prodDepth--;
+      else return;
+      if (typeof rebuildPLV === 'function') rebuildPLV();
+      syncDock();
+    });
+
+    setTimeout(syncDock, 50);
+  }
+})();
+</script>
+</body>
+</html>
