@@ -2792,15 +2792,28 @@ window.removeFile = function(index) {
       +     '<span class="val" id="m-depth">' + (typeof S !== "undefined" ? S.prodDepth : 4) + '</span>'
       +     '<button data-act="depth-plus" aria-label="Plus profondeur">+</button>'
       +   '</div>'
-      + '</div>'
-      + '<div class="sep"></div>'
-      + '<div class="group">'
-      +   '<span class="label">Vue</span>'
-      +   '<div class="row">'
-      +     '<button data-act="toggle-products" id="m-toggle" aria-label="Plein / Vide" style="width:auto;padding:0 12px;font-size:11px;font-weight:800;letter-spacing:0.04em;">PLEIN</button>'
-      +   '</div>'
       + '</div>';
     document.body.appendChild(dock);
+
+    // Floating toggle button (PLEIN / VIDE) au-dessus du dock à droite
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'm-toggle';
+    toggleBtn.dataset.act = 'toggle-products';
+    toggleBtn.setAttribute('aria-label', 'Plein / Vide');
+    toggleBtn.style.cssText = 'position:fixed;top:16px;right:16px;z-index:1001;'
+      + 'padding:10px 18px;border-radius:9999px;font-size:12px;font-weight:800;'
+      + 'letter-spacing:0.06em;font-family:Rajdhani,system-ui,sans-serif;'
+      + 'background:white;color:#000B58;border:1px solid rgba(0,11,88,0.18);'
+      + 'box-shadow:0 4px 14px rgba(0,11,88,0.16);cursor:pointer;'
+      + 'transition:background 0.15s, color 0.15s, transform 0.1s;';
+    toggleBtn.textContent = 'PLEIN';
+    toggleBtn.addEventListener('click', () => {
+      if (typeof S === 'undefined') return;
+      S.showProducts = !S.showProducts;
+      if (typeof rebuildPLV === 'function') rebuildPLV();
+      syncDock();
+    });
+    document.body.appendChild(toggleBtn);
 
     function syncDock() {
       const sv = document.getElementById('m-shelves');
