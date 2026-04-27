@@ -2541,7 +2541,16 @@ window.removeFile = function(index) {
   const isMobile = () => window.innerWidth <= 768;
   const isPortrait = () => window.innerHeight > window.innerWidth;
 
-  function fitCameraToPLV() {
+  // Track user interaction so we don't override zoom/pan
+  let userInteracted = false;
+  let lastViewportSig = '';
+  controls.addEventListener('start', () => { userInteracted = true; });
+
+  function viewportSig() {
+    return window.innerWidth + 'x' + window.innerHeight + ':' + (isPortrait() ? 'p' : 'l');
+  }
+
+  function fitCameraToPLV(force = false) {
     if (!plvGroup || plvGroup.children.length === 0) return;
     const box = new THREE.Box3().setFromObject(plvGroup);
     if (box.isEmpty()) return;
@@ -2559,6 +2568,15 @@ window.removeFile = function(index) {
       camera.fov = 32;
     }
     camera.aspect = aspect;
+    camera.updateProjectionMatrix();
+
+    if (!force && userInteracted) {
+      // Don't reset camera position, keep user's zoom/angle
+      // Just keep the target on the PLV center to avoid drift on rebuild
+      controls.target.lerp(center, 0.05);
+      controls.update();
+      return;
+    }
 
     const fovRad = camera.fov * Math.PI / 180;
     const distV = (size.y / 2) / Math.tan(fovRad / 2);
@@ -2567,20 +2585,22 @@ window.removeFile = function(index) {
 
     const dir = new THREE.Vector3(0.5, 0.18, 1).normalize();
     camera.position.copy(center).add(dir.multiplyScalar(dist));
-    camera.updateProjectionMatrix();
     controls.target.copy(center);
-    controls.minDistance = dist * 0.4;
-    controls.maxDistance = dist * 3;
+    controls.minDistance = dist * 0.3;
+    controls.maxDistance = dist * 4;
     controls.update();
+    userInteracted = false;
+    lastViewportSig = viewportSig();
   }
   window.fitCameraToPLV = fitCameraToPLV;
 
-  // Wrap build functions to auto-fit after each rebuild
+  // Wrap build functions: refit only when geometry changes (force=true)
   try {
     const _origBuildPLV = buildPLV;
     buildPLV = function() {
       _origBuildPLV.apply(this, arguments);
-      fitCameraToPLV();
+      // Re-center on new geometry but keep user zoom if any
+      fitCameraToPLV(false);
     };
   } catch(e) {}
   try {
@@ -2588,24 +2608,43 @@ window.removeFile = function(index) {
       const _origBuildPack = buildPackaging;
       buildPackaging = function() {
         _origBuildPack.apply(this, arguments);
-        fitCameraToPLV();
+        fitCameraToPLV(false);
       };
     }
   } catch(e) {}
 
-  // Resize handler
+  // Resize handler — only update aspect (avoid resetting camera on iOS Safari address bar toggle)
+  function handleResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    // Keep target on PLV center to avoid drift
+    if (plvGroup && plvGroup.children.length > 0) {
+      const box = new THREE.Box3().setFromObject(plvGroup);
+      if (!box.isEmpty()) controls.target.copy(box.getCenter(new THREE.Vector3()));
+    }
+    // Trigger full fit only if orientation changed (portrait <-> landscape)
+    const sig = viewportSig();
+    const wasP = lastViewportSig.endsWith(':p');
+    const isP = sig.endsWith(':p');
+    if (wasP !== isP) {
+      // Orientation flipped — full re-fit
+      userInteracted = false;
+      fitCameraToPLV(true);
+    }
+    lastViewportSig = sig;
+  }
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(fitCameraToPLV, 80);
+    resizeTimer = setTimeout(handleResize, 80);
   });
   window.addEventListener('orientationchange', () => {
-    setTimeout(fitCameraToPLV, 200);
+    setTimeout(() => { userInteracted = false; fitCameraToPLV(true); }, 250);
   });
 
-  // Initial fit (delayed to ensure first build is done)
-  setTimeout(fitCameraToPLV, 100);
-  setTimeout(fitCameraToPLV, 400);
+  // Initial fit (force, delayed to ensure first build is done)
+  setTimeout(() => fitCameraToPLV(true), 100);
+  setTimeout(() => fitCameraToPLV(true), 400);
 
   // Mobile dock — inject HTML + wire buttons
   if (!document.getElementById('mobile-dock')) {
