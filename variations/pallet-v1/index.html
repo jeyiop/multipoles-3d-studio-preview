@@ -1946,11 +1946,12 @@ function buildPLV() {
   const d = computeDims(), sc = 0.001;
   const W=d.plvW*sc, D=d.plvD*sc, t=S.wallT*sc;
   const palH = 144 * sc;                // hauteur palette EUR
-  const baseH = (S.baseH || 600) * sc;  // base box fermée
-  const shelvesH_total = (S.plvH ? S.plvH*sc : (1.0)) - palH - baseH;
-  const fH = (S.frontonH || 400) * sc;
-  const lip = S.shelfLip * sc, sT = d.shelfT * sc;
-  const pW = S.prodW * sc, pD = S.prodD * sc, pH = S.prodH * sc;
+  const baseH = 450 * sc;               // base box fermée
+  const shelvesH_total = 800 * sc;      // zone étagères 800mm
+  const fH = 380 * sc;                  // hauteur fronton
+  const lip = (S.shelfLip || 30) * sc, sT = d.shelfT * sc;
+  // Pack sirop 50×50×100 mm
+  const pW = 50 * sc, pD = 50 * sc, pH = 100 * sc;
   const mat = cyberMat;
   const cre = hexToInt(V.plvCrease);
 
@@ -2075,7 +2076,7 @@ function buildPLV() {
         new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.05 }));
       lbl.position.set(0, pH*0.08, pD/2*0.97 + 0.0004);
       prod.add(lbl);
-      plvGroup.add(prod);
+      shelvesGroup.add(prod);
     }
   }
   plvGroup.add(shelvesGroup);
