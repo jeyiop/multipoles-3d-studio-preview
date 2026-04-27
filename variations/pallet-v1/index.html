@@ -1440,10 +1440,11 @@ let currentMode = 'plv';
 // PLV STATE
 // ═══════════════════════════════════════════════════════
 const S = {
-  prodW: 100, prodD: 100, prodH: 225,
-  facing: 4, prodDepth: 4, nbShelves: 4,
-  wallT: 4, baseH: 450, frontonH: 350,
+  prodW: 50, prodD: 50, prodH: 100,
+  facing: 7, prodDepth: 7, nbShelves: 4,
+  wallT: 4, baseH: 450, frontonH: 380,
   frontonShape: 1, shelfLip: 14, headroom: 18,
+  showProducts: true,
 };
 
 // ═══════════════════════════════════════════════════════
@@ -2069,11 +2070,15 @@ function buildPLV() {
       lp.castShadow = true; addEdges(lp, cre, 0.46);
       shelvesGroup.add(lp);
     }
-    // Produits (pack sirop) sur chaque étagère
-    for (let f = 0; f < S.facing; f++) for (let dp = 0; dp < S.prodDepth; dp++) {
-      const innerW = W - 2*t;
-      const innerD = shelfD - t;
-      if ((f + 0.5) * pW > innerW || (dp + 0.5) * pD > innerD) continue;
+    // Produits (pack sirop) sur chaque étagère — auto-fill capé par S.facing/S.prodDepth
+    if (!S.showProducts) continue;
+    const innerW = W - 2*t;
+    const innerD = shelfD - t;
+    const maxF = Math.max(1, Math.floor(innerW / pW));
+    const maxD = Math.max(1, Math.floor(innerD / pD));
+    const fCount = Math.min(S.facing, maxF);
+    const dCount = Math.min(S.prodDepth, maxD);
+    for (let f = 0; f < fCount; f++) for (let dp = 0; dp < dCount; dp++) {
       const px = -innerW/2 + (f + 0.5) * pW;
       const py = sY + sT/2 + pH/2;
       const pz = shelfZ - innerD/2 + (dp + 0.5) * pD;
@@ -2787,6 +2792,13 @@ window.removeFile = function(index) {
       +     '<span class="val" id="m-depth">' + (typeof S !== "undefined" ? S.prodDepth : 4) + '</span>'
       +     '<button data-act="depth-plus" aria-label="Plus profondeur">+</button>'
       +   '</div>'
+      + '</div>'
+      + '<div class="sep"></div>'
+      + '<div class="group">'
+      +   '<span class="label">Vue</span>'
+      +   '<div class="row">'
+      +     '<button data-act="toggle-products" id="m-toggle" aria-label="Plein / Vide" style="width:auto;padding:0 12px;font-size:11px;font-weight:800;letter-spacing:0.04em;">PLEIN</button>'
+      +   '</div>'
       + '</div>';
     document.body.appendChild(dock);
 
@@ -2794,9 +2806,15 @@ window.removeFile = function(index) {
       const sv = document.getElementById('m-shelves');
       const fv = document.getElementById('m-facing');
       const dv = document.getElementById('m-depth');
+      const tg = document.getElementById('m-toggle');
       if (sv && typeof S !== 'undefined') sv.textContent = S.nbShelves;
       if (fv && typeof S !== 'undefined') fv.textContent = S.facing;
       if (dv && typeof S !== 'undefined') dv.textContent = S.prodDepth;
+      if (tg && typeof S !== 'undefined') {
+        tg.textContent = S.showProducts ? 'PLEIN' : 'VIDE';
+        tg.style.background = S.showProducts ? 'white' : '#000B58';
+        tg.style.color = S.showProducts ? '#000B58' : 'white';
+      }
     }
 
     dock.addEventListener('click', (e) => {
@@ -2808,8 +2826,9 @@ window.removeFile = function(index) {
       else if (act === 'shelf-minus' && S.nbShelves > 1) S.nbShelves--;
       else if (act === 'facing-plus' && S.facing < 12) S.facing++;
       else if (act === 'facing-minus' && S.facing > 1) S.facing--;
-      else if (act === 'depth-plus' && S.prodDepth < 6) S.prodDepth++;
+      else if (act === 'depth-plus' && S.prodDepth < 12) S.prodDepth++;
       else if (act === 'depth-minus' && S.prodDepth > 1) S.prodDepth--;
+      else if (act === 'toggle-products') S.showProducts = !S.showProducts;
       else return;
       if (typeof rebuildPLV === 'function') rebuildPLV();
       syncDock();
