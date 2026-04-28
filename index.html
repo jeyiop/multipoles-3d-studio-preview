@@ -2844,6 +2844,147 @@ function buildPLVIlot() {
 }
 
 // ═══════════════════════════════════════════════════════
+// MODÈLE COMPTOIR — buildPLVComptoir (#plv4)
+// Présentoir comptoir cascade : étagères en escalier descendant
+// du fond vers l'avant, parois latérales triangulaires, dos+fronton
+// ═══════════════════════════════════════════════════════
+function buildPLVComptoir() {
+  while (plvGroup.children.length) plvGroup.remove(plvGroup.children[0]);
+  const d = computeDims(), sc = 0.001;
+  const W = d.plvW * sc, D = d.plvD * sc, t = S.wallT * sc;
+  const baseH = S.baseH * sc;                  // hauteur cascade (base du fond)
+  const sS = d.shelfSpacing * sc;
+  const shH = S.nbShelves * sS;                // hauteur totale cascade
+  const fH = S.frontonH * sc;
+  const totalH = baseH + shH + fH;             // hauteur totale (fond + cascade + fronton)
+  const lip = S.shelfLip * sc, sT = d.shelfT * sc;
+  const pW = S.prodW * sc, pD = S.prodD * sc, pH = S.prodH * sc;
+  const iW = d.innerW * sc;
+  const mat = cyberMat;
+  const cre = hexToInt(V.plvCrease);
+
+  // ─── DOS + FRONTON (1 panneau plein avec coins haut arrondis) ───
+  // Hauteur = baseH + shH + fH, largeur = W
+  const r = Math.min(W * 0.20, fH * 0.55);
+  const backShape = new THREE.Shape();
+  backShape.moveTo(-W/2, 0);
+  backShape.lineTo(W/2, 0);
+  backShape.lineTo(W/2, totalH - r);
+  backShape.quadraticCurveTo(W/2, totalH, W/2 - r, totalH);
+  backShape.lineTo(-W/2 + r, totalH);
+  backShape.quadraticCurveTo(-W/2, totalH, -W/2, totalH - r);
+  backShape.lineTo(-W/2, 0);
+  backShape.closePath();
+  const backPanel = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(backShape, { depth: t, bevelEnabled: false }),
+    mat()
+  );
+  backPanel.position.set(0, 0, -D/2 + t/2);
+  backPanel.castShadow = true; addEdges(backPanel, cre, 0.6);
+  plvGroup.add(backPanel);
+
+  // ─── SOL (plancher fermé) ───
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(W, t, D), mat());
+  floor.position.set(0, t/2, 0);
+  floor.receiveShadow = true; floor.castShadow = true;
+  addEdges(floor, cre, 0.5); plvGroup.add(floor);
+
+  // ─── PAROIS LATÉRALES TRIANGULAIRES / ESCALIER ───
+  // Profil : back-bottom (-D/2,0) → back-top (-D/2, baseH+shH) → front-bottom (D/2, 0)
+  // Mais pour un effet cascade, on découpe avec marches selon nbShelves
+  const nb = S.nbShelves;
+  function makeComptoirSideShape() {
+    const sh = new THREE.Shape();
+    const stepW = (D - t) / nb;
+    const stepH = (baseH + shH) / nb;
+    sh.moveTo(-D/2 + t/2, t);                  // back-bottom (au dessus du sol)
+    sh.lineTo(-D/2 + t/2, baseH + shH);        // back-top (sous le fronton)
+    // Escalier : top-back → ... → front-bottom
+    for (let i = 0; i < nb; i++) {
+      const x = -D/2 + t/2 + (i + 1) * stepW;
+      const yTop = (baseH + shH) - i * stepH;
+      const yBot = (baseH + shH) - (i + 1) * stepH;
+      sh.lineTo(x, yTop);                      // tread (horizontal forward)
+      sh.lineTo(x, yBot);                      // riser (vertical down)
+    }
+    sh.lineTo(D/2 - t/2, t);                   // front-bottom
+    sh.closePath();
+    return sh;
+  }
+  for (const s of [-1, 1]) {
+    const geo = new THREE.ExtrudeGeometry(makeComptoirSideShape(), { depth: t, bevelEnabled: false });
+    const wall = new THREE.Mesh(geo, mat());
+    wall.rotation.y = -Math.PI / 2;
+    wall.position.set(s > 0 ? W/2 - t : -W/2, 0, 0);
+    wall.castShadow = true; addEdges(wall, cre, 0.55);
+    plvGroup.add(wall);
+  }
+
+  // ─── ÉTAGÈRES CASCADE ───
+  // Pour chaque step i (0 = front-bottom, nb-1 = back-top) :
+  //   shelfY = i * stepH (hauteur du tread)
+  //   shelfDepth = (i+1) * stepW (profondeur de l'avant jusqu'au step i)
+  //   shelfZ = D/2 - shelfDepth/2 (centré contre l'avant)
+  // Mais en réalité, chaque étagère est UNE bande horizontale au niveau de chaque step
+  // La plus profonde = celle du fond (au top), la moins profonde = celle de l'avant (bas)
+  const stepW = (D - t) / nb;
+  const stepH = (baseH + shH) / nb;
+  for (let i = 0; i < nb; i++) {
+    // Step i counted from BACK (deepest) to FRONT (shallowest)
+    // i=0 → back step (deepest, highest)
+    // i=nb-1 → front step (shallowest, lowest)
+    const shelfDepth = (nb - i) * stepW;
+    const shelfY = (nb - i) * stepH;             // top of this step
+    const shelfZ = -D/2 + t + shelfDepth/2;      // centered against back
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(iW, sT, shelfDepth - t * 0.5), mat());
+    shelf.position.set(0, shelfY + sT/2, shelfZ);
+    shelf.castShadow = true; shelf.receiveShadow = true;
+    addEdges(shelf, cre, 0.55); plvGroup.add(shelf);
+
+    // Front riser (paroi verticale qui ferme le step à l'avant)
+    const riser = new THREE.Mesh(new THREE.BoxGeometry(iW, stepH, t * 0.6), mat());
+    riser.position.set(0, shelfY - stepH/2, shelfZ + shelfDepth/2 - t * 0.3);
+    riser.castShadow = true; addEdges(riser, cre, 0.55); plvGroup.add(riser);
+
+    // Lèvre frontale
+    if (lip > 0.001) {
+      const lp = new THREE.Mesh(new THREE.BoxGeometry(iW, lip, sT), mat());
+      lp.position.set(0, shelfY + sT/2 + lip/2, shelfZ + shelfDepth/2 - sT/2);
+      lp.castShadow = true; addEdges(lp, cre, 0.46); plvGroup.add(lp);
+    }
+
+    if (!S.showProducts) continue;
+    // Produits : grille facing × prodDepth (cap par profondeur dispo)
+    const innerD = shelfDepth - t * 1.5;
+    const maxD = Math.max(1, Math.floor(innerD / pD));
+    const dCount = Math.min(S.prodDepth, maxD);
+    for (let f = 0; f < S.facing; f++) for (let dp = 0; dp < dCount; dp++) {
+      const px = -iW/2 + (f + 0.5) * pW;
+      const py = shelfY + sT + pH/2;
+      const pz = shelfZ - innerD/2 + (dp + 0.5) * pD;
+      const pm = new THREE.MeshPhysicalMaterial({
+        color: hexToInt(V.prodBody), roughness: 0.7, metalness: 0.0,
+        clearcoat: 0.0, envMapIntensity: 0.0,
+        transparent: true, opacity: 0.4
+      });
+      const prod = new THREE.Mesh(new THREE.BoxGeometry(pW*0.97, pH*0.98, pD*0.97), pm);
+      prod.position.set(px, py, pz);
+      prod.castShadow = true; prod.receiveShadow = true;
+      addEdges(prod, hexToInt(V.prodCrease), 0.78);
+      const lbl = new THREE.Mesh(new THREE.PlaneGeometry(pW*0.7, pH*0.22),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.05 }));
+      lbl.position.set(0, pH*0.08, pD/2*0.97 + 0.0004);
+      prod.add(lbl);
+      plvGroup.add(prod);
+    }
+  }
+
+  const techFill = new THREE.DirectionalLight(0xffffff, 0.16);
+  techFill.position.set(-2, 3, 1.2);
+  plvGroup.add(techFill);
+}
+
+// ═══════════════════════════════════════════════════════
 // MOBILE PATCH — fit caméra à la PLV + dock minimal + sélecteur modèle
 // ═══════════════════════════════════════════════════════
 (function mobilePatch() {
@@ -2911,6 +3052,8 @@ function buildPLVIlot() {
         buildPLVPallet();
       } else if (S.plvModel === 'ilot') {
         buildPLVIlot();
+      } else if (S.plvModel === 'comptoir') {
+        buildPLVComptoir();
       } else {
         _origBuildPLV.apply(this, arguments);
       }
@@ -3008,8 +3151,8 @@ function buildPLVIlot() {
     modelBtn.textContent = '⊞ STANDARD';
     modelBtn.addEventListener('click', () => {
       if (typeof S === 'undefined') return;
-      // Cycle : standard → pallet → ilot → standard
-      const cycle = { 'standard': 'pallet', 'pallet': 'ilot', 'ilot': 'standard' };
+      // Cycle : standard → pallet → ilot → comptoir → standard
+      const cycle = { 'standard': 'pallet', 'pallet': 'ilot', 'ilot': 'comptoir', 'comptoir': 'standard' };
       S.plvModel = cycle[S.plvModel] || 'standard';
       if (typeof rebuildPLV === 'function') rebuildPLV();
       syncFloats();
@@ -3042,9 +3185,9 @@ function buildPLVIlot() {
 
     function syncFloats() {
       if (typeof S === 'undefined') return;
-      const refs = { 'standard': '#plv1', 'pallet': '#plv2', 'ilot': '#plv3' };
+      const refs = { 'standard': '#plv1', 'pallet': '#plv2', 'ilot': '#plv3', 'comptoir': '#plv4' };
       if (modelBtn) {
-        const labels = { 'standard': '⊞ STANDARD', 'pallet': '⊟ PALLET', 'ilot': '⇆ TRAVERSANTE' };
+        const labels = { 'standard': '⊞ STANDARD', 'pallet': '⊟ PALLET', 'ilot': '⇆ TRAVERSANTE', 'comptoir': '◣ COMPTOIR' };
         modelBtn.textContent = labels[S.plvModel] || '⊞ STANDARD';
         const isAlt = S.plvModel !== 'standard';
         modelBtn.style.background = isAlt ? '#000B58' : 'white';
