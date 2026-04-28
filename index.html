@@ -2704,6 +2704,151 @@ function buildPLVPallet() {
 }
 
 // ═══════════════════════════════════════════════════════
+// MODÈLE ILOT — buildPLVIlot (PLV de sol type îlot/traversante)
+// Base box fermée + parois latérales droites avec coupe angulaire avant
+// + 4 étagères avec bandeau marquage avant ET arrière (accessible 2 côtés)
+// + fronton cathédrale visible des 2 côtés
+// ═══════════════════════════════════════════════════════
+function buildPLVIlot() {
+  while (plvGroup.children.length) plvGroup.remove(plvGroup.children[0]);
+  const d = computeDims(), sc = 0.001;
+  const W = d.plvW * sc, D = d.plvD * sc, t = S.wallT * sc;
+  const baseH = S.baseH * sc;
+  const sS = d.shelfSpacing * sc;
+  const shH = S.nbShelves * sS;
+  const fH = S.frontonH * sc;
+  const lip = S.shelfLip * sc, sT = d.shelfT * sc;
+  const pW = S.prodW * sc, pD = S.prodD * sc, pH = S.prodH * sc;
+  const iW = d.innerW * sc;
+  const bandH = 35 * sc;                       // hauteur bandeau marquage
+  const mat = cyberMat;
+  const cre = hexToInt(V.plvCrease);
+
+  // ─── BASE BOX FERMÉE ───
+  const baseGroup = new THREE.Group();
+  // 4 panneaux verticaux + dessus + dessous
+  const front = new THREE.Mesh(new THREE.BoxGeometry(W, baseH, t), mat());
+  front.position.set(0, baseH/2, D/2 - t/2);
+  front.castShadow = true; addEdges(front, cre, 0.6); baseGroup.add(front);
+  const backB = new THREE.Mesh(new THREE.BoxGeometry(W, baseH, t), mat());
+  backB.position.set(0, baseH/2, -D/2 + t/2);
+  backB.castShadow = true; addEdges(backB, cre, 0.6); baseGroup.add(backB);
+  for (const s of [-1, 1]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(t, baseH, D), mat());
+    wall.position.set(s * (W/2 - t/2), baseH/2, 0);
+    wall.castShadow = true; addEdges(wall, cre, 0.6); baseGroup.add(wall);
+  }
+  const topB = new THREE.Mesh(new THREE.BoxGeometry(W, t, D), mat());
+  topB.position.set(0, baseH - t/2, 0);
+  topB.castShadow = true; addEdges(topB, cre, 0.55); baseGroup.add(topB);
+  plvGroup.add(baseGroup);
+
+  // ─── ZONE ÉTAGÈRES (parois droites + coupe angulaire en haut/avant) ───
+  const shelvesGroup = new THREE.Group();
+  shelvesGroup.position.y = baseH;
+
+  // Parois latérales en parallélogramme : front coupé en biseau au sommet
+  // Shape XY : X=profondeur (-D/2 → D/2), Y=hauteur (0 → shH)
+  function makeIlotSideShape() {
+    const sh = new THREE.Shape();
+    sh.moveTo(-D/2 + t/2, 0);                  // bottom-back
+    sh.lineTo(D/2 - t/2, 0);                   // bottom-front
+    sh.lineTo(D/2 - t/2, shH * 0.55);          // mid-front (avant la coupe)
+    sh.lineTo(-D/2 + t/2, shH);                // top-back (coupe diagonale)
+    sh.closePath();
+    return sh;
+  }
+  for (const s of [-1, 1]) {
+    const geo = new THREE.ExtrudeGeometry(makeIlotSideShape(), { depth: t, bevelEnabled: false });
+    const wall = new THREE.Mesh(geo, mat());
+    wall.rotation.y = -Math.PI / 2;
+    wall.position.set(s > 0 ? W/2 - t : -W/2, 0, 0);
+    wall.castShadow = true;
+    addEdges(wall, cre, 0.55);
+    shelvesGroup.add(wall);
+  }
+
+  // PAS de panneau dos (traversante : ouverture des 2 côtés)
+
+  // Étagères + bandeau marquage AVANT et ARRIÈRE (traversante)
+  for (let i = 0; i < S.nbShelves; i++) {
+    const sY = i * sS;
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(iW, sT, D - 2*t), mat());
+    shelf.position.set(0, sY + sT/2, 0);
+    shelf.castShadow = true; shelf.receiveShadow = true;
+    addEdges(shelf, cre, 0.55); shelvesGroup.add(shelf);
+
+    // Bandeau marquage AVANT (front)
+    const bandFront = new THREE.Mesh(new THREE.BoxGeometry(iW, bandH, t * 0.8), mat());
+    bandFront.position.set(0, sY + sT + bandH/2, D/2 - t * 0.5);
+    bandFront.castShadow = true;
+    addEdges(bandFront, cre, 0.62); shelvesGroup.add(bandFront);
+
+    // Bandeau marquage ARRIÈRE (back) — traversante
+    const bandBack = new THREE.Mesh(new THREE.BoxGeometry(iW, bandH, t * 0.8), mat());
+    bandBack.position.set(0, sY + sT + bandH/2, -D/2 + t * 0.5);
+    bandBack.castShadow = true;
+    addEdges(bandBack, cre, 0.62); shelvesGroup.add(bandBack);
+
+    if (lip > 0.001) {
+      const lp = new THREE.Mesh(new THREE.BoxGeometry(iW, lip, sT), mat());
+      lp.position.set(0, sY + sT/2 + lip/2, D/2 - t - sT/2);
+      lp.castShadow = true; addEdges(lp, cre, 0.46); shelvesGroup.add(lp);
+    }
+
+    if (!S.showProducts) continue;
+    const innerD = D - 2*t;
+    const maxD = Math.max(1, Math.floor(innerD / pD));
+    const dCount = Math.min(S.prodDepth, maxD);
+    for (let f = 0; f < S.facing; f++) for (let dp = 0; dp < dCount; dp++) {
+      const px = -iW/2 + (f + 0.5) * pW;
+      const py = sY + sT + pH/2;
+      const pz = -innerD/2 + (dp + 0.5) * pD;
+      const pm = new THREE.MeshPhysicalMaterial({
+        color: hexToInt(V.prodBody), roughness: 0.7, metalness: 0.0,
+        clearcoat: 0.0, envMapIntensity: 0.0,
+        transparent: true, opacity: 0.4
+      });
+      const prod = new THREE.Mesh(new THREE.BoxGeometry(pW*0.97, pH*0.98, pD*0.97), pm);
+      prod.position.set(px, py, pz);
+      prod.castShadow = true; prod.receiveShadow = true;
+      addEdges(prod, hexToInt(V.prodCrease), 0.78);
+      const lbl = new THREE.Mesh(new THREE.PlaneGeometry(pW*0.7, pH*0.22),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.05 }));
+      lbl.position.set(0, pH*0.08, pD/2*0.97 + 0.0004);
+      prod.add(lbl);
+      shelvesGroup.add(prod);
+    }
+  }
+  plvGroup.add(shelvesGroup);
+
+  // ─── FRONTON CATHÉDRALE (arc bombé haut, visible des 2 côtés) ───
+  const frontonGroup = new THREE.Group();
+  frontonGroup.position.y = baseH + shH;
+  const frW = W * 0.92, hw = frW/2;
+  const aH = fH * 0.45;                        // hauteur de l'arc
+  const fShape = new THREE.Shape();
+  fShape.moveTo(-hw, 0);
+  fShape.lineTo(-hw, fH - aH);
+  fShape.bezierCurveTo(-hw, fH, -hw*0.3, fH + aH*0.5, 0, fH + aH*0.25);
+  fShape.bezierCurveTo(hw*0.3, fH + aH*0.5, hw, fH, hw, fH - aH);
+  fShape.lineTo(hw, 0);
+  fShape.closePath();
+  const fronton = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(fShape, { depth: t * 1.6, bevelEnabled: false }),
+    mat()
+  );
+  fronton.position.set(0, 0, -t * 0.8);
+  fronton.castShadow = true; addEdges(fronton, cre, 0.6);
+  frontonGroup.add(fronton);
+  plvGroup.add(frontonGroup);
+
+  const techFill = new THREE.DirectionalLight(0xffffff, 0.16);
+  techFill.position.set(-2, 3, 1.2);
+  plvGroup.add(techFill);
+}
+
+// ═══════════════════════════════════════════════════════
 // MOBILE PATCH — fit caméra à la PLV + dock minimal + sélecteur modèle
 // ═══════════════════════════════════════════════════════
 (function mobilePatch() {
@@ -2769,6 +2914,8 @@ function buildPLVPallet() {
     buildPLV = function() {
       if (S.plvModel === 'pallet') {
         buildPLVPallet();
+      } else if (S.plvModel === 'ilot') {
+        buildPLVIlot();
       } else {
         _origBuildPLV.apply(this, arguments);
       }
@@ -2866,7 +3013,9 @@ function buildPLVPallet() {
     modelBtn.textContent = '⊞ STANDARD';
     modelBtn.addEventListener('click', () => {
       if (typeof S === 'undefined') return;
-      S.plvModel = (S.plvModel === 'pallet') ? 'standard' : 'pallet';
+      // Cycle : standard → pallet → ilot → standard
+      const cycle = { 'standard': 'pallet', 'pallet': 'ilot', 'ilot': 'standard' };
+      S.plvModel = cycle[S.plvModel] || 'standard';
       if (typeof rebuildPLV === 'function') rebuildPLV();
       syncFloats();
     });
@@ -2889,9 +3038,11 @@ function buildPLVPallet() {
     function syncFloats() {
       if (typeof S === 'undefined') return;
       if (modelBtn) {
-        modelBtn.textContent = (S.plvModel === 'pallet') ? '⊟ PALLET' : '⊞ STANDARD';
-        modelBtn.style.background = (S.plvModel === 'pallet') ? '#000B58' : 'white';
-        modelBtn.style.color = (S.plvModel === 'pallet') ? 'white' : '#000B58';
+        const labels = { 'standard': '⊞ STANDARD', 'pallet': '⊟ PALLET', 'ilot': '◇ ÎLOT' };
+        modelBtn.textContent = labels[S.plvModel] || '⊞ STANDARD';
+        const isAlt = S.plvModel !== 'standard';
+        modelBtn.style.background = isAlt ? '#000B58' : 'white';
+        modelBtn.style.color = isAlt ? 'white' : '#000B58';
       }
       if (toggleBtn) {
         toggleBtn.textContent = S.showProducts ? 'PLEIN' : 'VIDE';
