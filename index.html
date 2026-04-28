@@ -2716,17 +2716,16 @@ function buildPLVIlot() {
   const baseH = S.baseH * sc;
   const sS = d.shelfSpacing * sc;
   const shH = S.nbShelves * sS;
-  const fH = S.frontonH * sc;
+  const fH = S.frontonH * sc * 1.2;            // fronton plus haut sur ce modèle
   const lip = S.shelfLip * sc, sT = d.shelfT * sc;
   const pW = S.prodW * sc, pD = S.prodD * sc, pH = S.prodH * sc;
   const iW = d.innerW * sc;
-  const bandH = 35 * sc;                       // hauteur bandeau marquage
+  const bandH = 30 * sc;                       // hauteur bandeau marquage
   const mat = cyberMat;
   const cre = hexToInt(V.plvCrease);
 
-  // ─── BASE BOX FERMÉE ───
+  // ─── BASE BOX FERMÉE (intégrée — 4 panneaux + dessus + dessous) ───
   const baseGroup = new THREE.Group();
-  // 4 panneaux verticaux + dessus + dessous
   const front = new THREE.Mesh(new THREE.BoxGeometry(W, baseH, t), mat());
   front.position.set(0, baseH/2, D/2 - t/2);
   front.castShadow = true; addEdges(front, cre, 0.6); baseGroup.add(front);
@@ -2743,34 +2742,25 @@ function buildPLVIlot() {
   topB.castShadow = true; addEdges(topB, cre, 0.55); baseGroup.add(topB);
   plvGroup.add(baseGroup);
 
-  // ─── ZONE ÉTAGÈRES (parois droites + coupe angulaire en haut/avant) ───
+  // ─── ZONE ÉTAGÈRES — STRUCTURE INTÉGRÉE ───
+  // Parois latérales VERTICALES PLEINES (pas de biseau) qui montent
+  // de la base jusqu'à la hauteur du fronton — donne l'aspect monobloc
   const shelvesGroup = new THREE.Group();
   shelvesGroup.position.y = baseH;
 
-  // Parois latérales en parallélogramme : front coupé en biseau au sommet
-  // Shape XY : X=profondeur (-D/2 → D/2), Y=hauteur (0 → shH)
-  function makeIlotSideShape() {
-    const sh = new THREE.Shape();
-    sh.moveTo(-D/2 + t/2, 0);                  // bottom-back
-    sh.lineTo(D/2 - t/2, 0);                   // bottom-front
-    sh.lineTo(D/2 - t/2, shH * 0.55);          // mid-front (avant la coupe)
-    sh.lineTo(-D/2 + t/2, shH);                // top-back (coupe diagonale)
-    sh.closePath();
-    return sh;
-  }
+  // Dos VERTICAL pleine hauteur (cadre fermé pour intégration visuelle)
+  const sBack = new THREE.Mesh(new THREE.BoxGeometry(W, shH, t), mat());
+  sBack.position.set(0, shH/2, -D/2 + t/2);
+  sBack.castShadow = true; addEdges(sBack, cre, 0.6); shelvesGroup.add(sBack);
+
+  // Côtés VERTICAUX pleine hauteur (rectangles)
   for (const s of [-1, 1]) {
-    const geo = new THREE.ExtrudeGeometry(makeIlotSideShape(), { depth: t, bevelEnabled: false });
-    const wall = new THREE.Mesh(geo, mat());
-    wall.rotation.y = -Math.PI / 2;
-    wall.position.set(s > 0 ? W/2 - t : -W/2, 0, 0);
-    wall.castShadow = true;
-    addEdges(wall, cre, 0.55);
-    shelvesGroup.add(wall);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(t, shH, D), mat());
+    wall.position.set(s * (W/2 - t/2), shH/2, 0);
+    wall.castShadow = true; addEdges(wall, cre, 0.6); shelvesGroup.add(wall);
   }
 
-  // PAS de panneau dos (traversante : ouverture des 2 côtés)
-
-  // Étagères + bandeau marquage AVANT et ARRIÈRE (traversante)
+  // 4 étagères avec bandeau marquage AVANT (front face) — comme la photo de réf
   for (let i = 0; i < S.nbShelves; i++) {
     const sY = i * sS;
     const shelf = new THREE.Mesh(new THREE.BoxGeometry(iW, sT, D - 2*t), mat());
@@ -2778,17 +2768,11 @@ function buildPLVIlot() {
     shelf.castShadow = true; shelf.receiveShadow = true;
     addEdges(shelf, cre, 0.55); shelvesGroup.add(shelf);
 
-    // Bandeau marquage AVANT (front)
-    const bandFront = new THREE.Mesh(new THREE.BoxGeometry(iW, bandH, t * 0.8), mat());
-    bandFront.position.set(0, sY + sT + bandH/2, D/2 - t * 0.5);
+    // Bandeau marquage AVANT — strip horizontal sur la face avant
+    const bandFront = new THREE.Mesh(new THREE.BoxGeometry(iW, bandH, t * 0.6), mat());
+    bandFront.position.set(0, sY + sT + bandH/2, D/2 - t);
     bandFront.castShadow = true;
-    addEdges(bandFront, cre, 0.62); shelvesGroup.add(bandFront);
-
-    // Bandeau marquage ARRIÈRE (back) — traversante
-    const bandBack = new THREE.Mesh(new THREE.BoxGeometry(iW, bandH, t * 0.8), mat());
-    bandBack.position.set(0, sY + sT + bandH/2, -D/2 + t * 0.5);
-    bandBack.castShadow = true;
-    addEdges(bandBack, cre, 0.62); shelvesGroup.add(bandBack);
+    addEdges(bandFront, cre, 0.65); shelvesGroup.add(bandFront);
 
     if (lip > 0.001) {
       const lp = new THREE.Mesh(new THREE.BoxGeometry(iW, lip, sT), mat());
@@ -2822,23 +2806,27 @@ function buildPLVIlot() {
   }
   plvGroup.add(shelvesGroup);
 
-  // ─── FRONTON CATHÉDRALE (arc bombé haut, visible des 2 côtés) ───
+  // ─── FRONTON RECTANGULAIRE À COINS ARRONDIS HAUT (style tablette/billboard) ───
+  // Comme dans la référence : pas une cathédrale arquée, juste un rectangle haut
+  // à coins supérieurs arrondis qui prolonge visuellement la structure
   const frontonGroup = new THREE.Group();
   frontonGroup.position.y = baseH + shH;
-  const frW = W * 0.92, hw = frW/2;
-  const aH = fH * 0.45;                        // hauteur de l'arc
+  const frW = W * 0.94, hw = frW/2;
+  const r = Math.min(frW * 0.18, fH * 0.22);
   const fShape = new THREE.Shape();
   fShape.moveTo(-hw, 0);
-  fShape.lineTo(-hw, fH - aH);
-  fShape.bezierCurveTo(-hw, fH, -hw*0.3, fH + aH*0.5, 0, fH + aH*0.25);
-  fShape.bezierCurveTo(hw*0.3, fH + aH*0.5, hw, fH, hw, fH - aH);
   fShape.lineTo(hw, 0);
+  fShape.lineTo(hw, fH - r);
+  fShape.quadraticCurveTo(hw, fH, hw - r, fH);
+  fShape.lineTo(-hw + r, fH);
+  fShape.quadraticCurveTo(-hw, fH, -hw, fH - r);
+  fShape.lineTo(-hw, 0);
   fShape.closePath();
   const fronton = new THREE.Mesh(
     new THREE.ExtrudeGeometry(fShape, { depth: t * 1.6, bevelEnabled: false }),
     mat()
   );
-  fronton.position.set(0, 0, -t * 0.8);
+  fronton.position.set(0, 0, -D/2 + t * 0.8);
   fronton.castShadow = true; addEdges(fronton, cre, 0.6);
   frontonGroup.add(fronton);
   plvGroup.add(frontonGroup);
