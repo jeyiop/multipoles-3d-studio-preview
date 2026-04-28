@@ -1444,6 +1444,8 @@ const S = {
   facing: 4, prodDepth: 4, nbShelves: 4,
   wallT: 4, baseH: 450, frontonH: 350,
   frontonShape: 1, shelfLip: 14, headroom: 18,
+  plvModel: 'standard',  // 'standard' | 'pallet'
+  showProducts: true,
 };
 
 // ═══════════════════════════════════════════════════════
@@ -2535,7 +2537,170 @@ window.removeFile = function(index) {
 };
 
 // ═══════════════════════════════════════════════════════
-// MOBILE PATCH — fit caméra à la PLV + dock minimal
+// MODÈLE PALLET — buildPLVPallet (alternative à buildPLVStandard)
+// ═══════════════════════════════════════════════════════
+function buildPLVPallet() {
+  while (plvGroup.children.length) plvGroup.remove(plvGroup.children[0]);
+  const d = computeDims(), sc = 0.001;
+  const W = d.plvW * sc, D = d.plvD * sc, t = S.wallT * sc;
+  const palH = 144 * sc;
+  const baseH = (S.baseH || 450) * sc;
+  const shH = 800 * sc;
+  const fH = 380 * sc;
+  const lip = (S.shelfLip || 30) * sc, sT = d.shelfT * sc;
+  const pW = S.prodW * sc, pD = S.prodD * sc, pH = S.prodH * sc;
+  const mat = cyberMat;
+  const cre = hexToInt(V.plvCrease);
+
+  // ─── PALETTE EUR ───
+  const palGroup = new THREE.Group();
+  const palW = W * 1.06, palD = D * 1.10, plankT = 18 * sc;
+  for (let i = 0; i < 3; i++) {
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(palW, plankT, palD * 0.30), mat());
+    plank.position.set(0, palH - plankT/2, (i - 1) * (palD * 0.36));
+    plank.castShadow = true; plank.receiveShadow = true;
+    addEdges(plank, cre, 0.6); palGroup.add(plank);
+  }
+  for (let i = 0; i < 3; i++) {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(palW, plankT, palD * 0.18), mat());
+    beam.position.set(0, plankT/2, (i - 1) * (palD * 0.42));
+    beam.castShadow = true; beam.receiveShadow = true;
+    addEdges(beam, cre, 0.6); palGroup.add(beam);
+  }
+  const postH = palH - 2 * plankT, postS = 90 * sc;
+  for (let r = -1; r <= 1; r++) for (let c = -1; c <= 1; c++) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(postS, postH, postS), mat());
+    post.position.set(c * (palW/2 - postS/2 - plankT*0.2), plankT + postH/2, r * (palD * 0.42));
+    post.castShadow = true; post.receiveShadow = true;
+    addEdges(post, cre, 0.55); palGroup.add(post);
+  }
+  plvGroup.add(palGroup);
+
+  // ─── BASE BOX FERMÉE ───
+  const baseGroup = new THREE.Group();
+  baseGroup.position.y = palH;
+  const front = new THREE.Mesh(new THREE.BoxGeometry(W, baseH, t), mat());
+  front.position.set(0, baseH/2, D/2 - t/2);
+  front.castShadow = true; addEdges(front, cre, 0.6); baseGroup.add(front);
+  const backB = new THREE.Mesh(new THREE.BoxGeometry(W, baseH, t), mat());
+  backB.position.set(0, baseH/2, -D/2 + t/2);
+  backB.castShadow = true; addEdges(backB, cre, 0.6); baseGroup.add(backB);
+  for (const s of [-1, 1]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(t, baseH, D), mat());
+    wall.position.set(s * (W/2 - t/2), baseH/2, 0);
+    wall.castShadow = true; addEdges(wall, cre, 0.6); baseGroup.add(wall);
+  }
+  const topB = new THREE.Mesh(new THREE.BoxGeometry(W, t, D), mat());
+  topB.position.set(0, baseH - t/2, 0);
+  topB.castShadow = true; addEdges(topB, cre, 0.55); baseGroup.add(topB);
+  plvGroup.add(baseGroup);
+
+  // ─── ZONE ÉTAGÈRES (parois trapèze) ───
+  const shelvesGroup = new THREE.Group();
+  shelvesGroup.position.y = palH + baseH;
+  const sBack = new THREE.Mesh(new THREE.BoxGeometry(W, shH, t), mat());
+  sBack.position.set(0, shH/2, -D/2 + t/2);
+  sBack.castShadow = true; addEdges(sBack, cre, 0.6); shelvesGroup.add(sBack);
+
+  function makeSideShape() {
+    const sh = new THREE.Shape();
+    sh.moveTo(-D/2 + t/2, 0);
+    sh.lineTo(D/2 - t/2, 0);
+    sh.lineTo(-D/2 + D * 0.32, shH);
+    sh.lineTo(-D/2 + t/2, shH);
+    sh.closePath();
+    return sh;
+  }
+  {
+    const geo = new THREE.ExtrudeGeometry(makeSideShape(), { depth: t, bevelEnabled: false });
+    const wall = new THREE.Mesh(geo, mat());
+    wall.rotation.y = -Math.PI / 2;
+    wall.position.set(W/2 - t, 0, 0);
+    wall.castShadow = true; addEdges(wall, cre, 0.55); shelvesGroup.add(wall);
+  }
+  {
+    const geo = new THREE.ExtrudeGeometry(makeSideShape(), { depth: t, bevelEnabled: false });
+    const wall = new THREE.Mesh(geo, mat());
+    wall.rotation.y = -Math.PI / 2;
+    wall.position.set(-W/2, 0, 0);
+    wall.castShadow = true; addEdges(wall, cre, 0.55); shelvesGroup.add(wall);
+  }
+
+  const nbShelves = Math.max(1, Math.min(6, S.nbShelves || 3));
+  const shelfStep = shH / (nbShelves + 0.4);
+  for (let i = 0; i < nbShelves; i++) {
+    const sY = (i + 0.6) * shelfStep;
+    const ratio = sY / shH;
+    const shelfD = D * (1 - ratio * 0.35);
+    const shelfZ = -D/2 + t + shelfD/2;
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(W - 2*t, sT, shelfD - t), mat());
+    shelf.position.set(0, sY, shelfZ);
+    shelf.castShadow = true; shelf.receiveShadow = true;
+    addEdges(shelf, cre, 0.55); shelvesGroup.add(shelf);
+    if (lip > 0.001) {
+      const lp = new THREE.Mesh(new THREE.BoxGeometry(W - 2*t, lip, sT), mat());
+      lp.position.set(0, sY + sT/2 + lip/2, shelfZ + (shelfD - t)/2);
+      lp.castShadow = true; addEdges(lp, cre, 0.46); shelvesGroup.add(lp);
+    }
+    if (!S.showProducts) continue;
+    const innerW = W - 2*t;
+    const innerD = shelfD - t;
+    const maxF = Math.max(1, Math.floor(innerW / pW));
+    const maxD = Math.max(1, Math.floor(innerD / pD));
+    const fCount = Math.min(S.facing, maxF);
+    const dCount = Math.min(S.prodDepth, maxD);
+    for (let f = 0; f < fCount; f++) for (let dp = 0; dp < dCount; dp++) {
+      const px = -innerW/2 + (f + 0.5) * pW;
+      const py = sY + sT/2 + pH/2;
+      const pz = shelfZ - innerD/2 + (dp + 0.5) * pD;
+      const pm = new THREE.MeshPhysicalMaterial({
+        color: hexToInt(V.prodBody), roughness: 0.7, metalness: 0.0,
+        clearcoat: 0.0, envMapIntensity: 0.0,
+        transparent: true, opacity: 0.4
+      });
+      const prod = new THREE.Mesh(new THREE.BoxGeometry(pW*0.97, pH*0.98, pD*0.97), pm);
+      prod.position.set(px, py, pz);
+      prod.castShadow = true; prod.receiveShadow = true;
+      addEdges(prod, hexToInt(V.prodCrease), 0.78);
+      const lbl = new THREE.Mesh(new THREE.PlaneGeometry(pW*0.7, pH*0.22),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.05 }));
+      lbl.position.set(0, pH*0.08, pD/2*0.97 + 0.0004);
+      prod.add(lbl);
+      shelvesGroup.add(prod);
+    }
+  }
+  plvGroup.add(shelvesGroup);
+
+  // ─── FRONTON RECTANGULAIRE COINS ARRONDIS HAUT ───
+  const frontonGroup = new THREE.Group();
+  frontonGroup.position.y = palH + baseH + shH;
+  const frW = W * 0.78, hw = frW/2;
+  const r = Math.min(frW * 0.18, fH * 0.22);
+  const fShape = new THREE.Shape();
+  fShape.moveTo(-hw, 0);
+  fShape.lineTo(hw, 0);
+  fShape.lineTo(hw, fH - r);
+  fShape.quadraticCurveTo(hw, fH, hw - r, fH);
+  fShape.lineTo(-hw + r, fH);
+  fShape.quadraticCurveTo(-hw, fH, -hw, fH - r);
+  fShape.lineTo(-hw, 0);
+  fShape.closePath();
+  const fronton = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(fShape, { depth: t * 1.6, bevelEnabled: false }),
+    mat()
+  );
+  fronton.position.set(0, 0, -D/2 + t * 0.5);
+  fronton.castShadow = true; addEdges(fronton, cre, 0.6);
+  frontonGroup.add(fronton);
+  plvGroup.add(frontonGroup);
+
+  const techFill = new THREE.DirectionalLight(0xffffff, 0.16);
+  techFill.position.set(-2, 3, 1.2);
+  plvGroup.add(techFill);
+}
+
+// ═══════════════════════════════════════════════════════
+// MOBILE PATCH — fit caméra à la PLV + dock minimal + sélecteur modèle
 // ═══════════════════════════════════════════════════════
 (function mobilePatch() {
   const isMobile = () => window.innerWidth <= 768;
@@ -2598,9 +2763,13 @@ window.removeFile = function(index) {
   try {
     const _origBuildPLV = buildPLV;
     buildPLV = function() {
-      _origBuildPLV.apply(this, arguments);
+      if (S.plvModel === 'pallet') {
+        buildPLVPallet();
+      } else {
+        _origBuildPLV.apply(this, arguments);
+      }
       // Re-center on new geometry but keep user zoom if any
-      fitCameraToPLV(false);
+      fitCameraToPLV(true);
     };
   } catch(e) {}
   try {
@@ -2679,6 +2848,54 @@ window.removeFile = function(index) {
       + '</div>';
     document.body.appendChild(dock);
 
+    // ── Floating: sélecteur modèle (top-left) ──
+    const floatBtnStyle = 'position:fixed;top:16px;z-index:1001;'
+      + 'padding:10px 16px;border-radius:9999px;font-size:11.5px;font-weight:800;'
+      + 'letter-spacing:0.06em;font-family:Rajdhani,system-ui,sans-serif;'
+      + 'background:white;color:#000B58;border:1px solid rgba(0,11,88,0.18);'
+      + 'box-shadow:0 4px 14px rgba(0,11,88,0.16);cursor:pointer;'
+      + 'transition:background 0.15s, color 0.15s, transform 0.1s;';
+    const modelBtn = document.createElement('button');
+    modelBtn.id = 'm-model';
+    modelBtn.setAttribute('aria-label', 'Modèle PLV');
+    modelBtn.style.cssText = floatBtnStyle + 'left:16px;';
+    modelBtn.textContent = '⊞ STANDARD';
+    modelBtn.addEventListener('click', () => {
+      if (typeof S === 'undefined') return;
+      S.plvModel = (S.plvModel === 'pallet') ? 'standard' : 'pallet';
+      if (typeof rebuildPLV === 'function') rebuildPLV();
+      syncFloats();
+    });
+    document.body.appendChild(modelBtn);
+
+    // ── Floating: toggle PLEIN/VIDE (top-right) ──
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'm-toggle';
+    toggleBtn.setAttribute('aria-label', 'Plein / Vide');
+    toggleBtn.style.cssText = floatBtnStyle + 'right:16px;';
+    toggleBtn.textContent = 'PLEIN';
+    toggleBtn.addEventListener('click', () => {
+      if (typeof S === 'undefined') return;
+      S.showProducts = !S.showProducts;
+      if (typeof rebuildPLV === 'function') rebuildPLV();
+      syncFloats();
+    });
+    document.body.appendChild(toggleBtn);
+
+    function syncFloats() {
+      if (typeof S === 'undefined') return;
+      if (modelBtn) {
+        modelBtn.textContent = (S.plvModel === 'pallet') ? '⊟ PALLET' : '⊞ STANDARD';
+        modelBtn.style.background = (S.plvModel === 'pallet') ? '#000B58' : 'white';
+        modelBtn.style.color = (S.plvModel === 'pallet') ? 'white' : '#000B58';
+      }
+      if (toggleBtn) {
+        toggleBtn.textContent = S.showProducts ? 'PLEIN' : 'VIDE';
+        toggleBtn.style.background = S.showProducts ? 'white' : '#000B58';
+        toggleBtn.style.color = S.showProducts ? '#000B58' : 'white';
+      }
+    }
+
     function syncDock() {
       const sv = document.getElementById('m-shelves');
       const fv = document.getElementById('m-facing');
@@ -2686,6 +2903,7 @@ window.removeFile = function(index) {
       if (sv && typeof S !== 'undefined') sv.textContent = S.nbShelves;
       if (fv && typeof S !== 'undefined') fv.textContent = S.facing;
       if (dv && typeof S !== 'undefined') dv.textContent = S.prodDepth;
+      syncFloats();
     }
 
     dock.addEventListener('click', (e) => {
@@ -2697,7 +2915,7 @@ window.removeFile = function(index) {
       else if (act === 'shelf-minus' && S.nbShelves > 1) S.nbShelves--;
       else if (act === 'facing-plus' && S.facing < 12) S.facing++;
       else if (act === 'facing-minus' && S.facing > 1) S.facing--;
-      else if (act === 'depth-plus' && S.prodDepth < 6) S.prodDepth++;
+      else if (act === 'depth-plus' && S.prodDepth < 12) S.prodDepth++;
       else if (act === 'depth-minus' && S.prodDepth > 1) S.prodDepth--;
       else return;
       if (typeof rebuildPLV === 'function') rebuildPLV();
@@ -2705,6 +2923,7 @@ window.removeFile = function(index) {
     });
 
     setTimeout(syncDock, 50);
+    setTimeout(syncFloats, 50);
   }
 })();
 </script>
