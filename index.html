@@ -2806,13 +2806,13 @@ function buildPLVIlot() {
   }
   plvGroup.add(shelvesGroup);
 
-  // ─── FRONTON RECTANGULAIRE À COINS ARRONDIS HAUT (style tablette/billboard) ───
-  // Comme dans la référence : pas une cathédrale arquée, juste un rectangle haut
-  // à coins supérieurs arrondis qui prolonge visuellement la structure
+  // ─── FRONTON DOME (rectangulaire à très grandes courbes hautes, style "tablette d'enseigne") ───
+  // Largeur = pleine largeur PLV pour intégration monobloc
+  // Coins supérieurs très arrondis (presque demi-cercle) pour aspect dome
   const frontonGroup = new THREE.Group();
   frontonGroup.position.y = baseH + shH;
-  const frW = W * 0.94, hw = frW/2;
-  const r = Math.min(frW * 0.18, fH * 0.22);
+  const frW = W, hw = frW/2;
+  const r = Math.min(frW * 0.42, fH * 0.55);   // grand rayon = aspect dome
   const fShape = new THREE.Shape();
   fShape.moveTo(-hw, 0);
   fShape.lineTo(hw, 0);
@@ -2823,11 +2823,12 @@ function buildPLVIlot() {
   fShape.lineTo(-hw, 0);
   fShape.closePath();
   const fronton = new THREE.Mesh(
-    new THREE.ExtrudeGeometry(fShape, { depth: t * 1.6, bevelEnabled: false }),
+    new THREE.ExtrudeGeometry(fShape, { depth: t * 1.8, bevelEnabled: false }),
     mat()
   );
-  fronton.position.set(0, 0, -D/2 + t * 0.8);
-  fronton.castShadow = true; addEdges(fronton, cre, 0.6);
+  // Positionner le fronton AU DOS pour qu'il fasse "billboard" qui dépasse
+  fronton.position.set(0, 0, -D/2 + t * 0.9);
+  fronton.castShadow = true; addEdges(fronton, cre, 0.65);
   frontonGroup.add(fronton);
   plvGroup.add(frontonGroup);
 
@@ -3026,7 +3027,7 @@ function buildPLVIlot() {
     function syncFloats() {
       if (typeof S === 'undefined') return;
       if (modelBtn) {
-        const labels = { 'standard': '⊞ STANDARD', 'pallet': '⊟ PALLET', 'ilot': '◇ ÎLOT' };
+        const labels = { 'standard': '⊞ STANDARD', 'pallet': '⊟ PALLET', 'ilot': '▭ BANDEAU' };
         modelBtn.textContent = labels[S.plvModel] || '⊞ STANDARD';
         const isAlt = S.plvModel !== 'standard';
         modelBtn.style.background = isAlt ? '#000B58' : 'white';
