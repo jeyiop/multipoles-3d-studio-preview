@@ -2852,20 +2852,20 @@ function buildPLVComptoir() {
   while (plvGroup.children.length) plvGroup.remove(plvGroup.children[0]);
   const d = computeDims(), sc = 0.001;
   const W = d.plvW * sc, D = d.plvD * sc, t = S.wallT * sc;
-  const baseH = S.baseH * sc;                  // hauteur cascade (base du fond)
-  const sS = d.shelfSpacing * sc;
-  const shH = S.nbShelves * sS;                // hauteur totale cascade
-  const fH = S.frontonH * sc;
-  const totalH = baseH + shH + fH;             // hauteur totale (fond + cascade + fronton)
+  // Comptoir : DIMENSIONS COMPACTES (display de comptoir, pas de sol)
+  const stepH = 90 * sc;                       // hauteur d'une marche (compact)
+  const fH = 200 * sc;                         // fronton compact
   const lip = S.shelfLip * sc, sT = d.shelfT * sc;
   const pW = S.prodW * sc, pD = S.prodD * sc, pH = S.prodH * sc;
   const iW = d.innerW * sc;
+  const nb = S.nbShelves;                      // nb de marches dans la cascade
+  const cascadeH = nb * stepH;                 // hauteur totale de la cascade
+  const totalH = cascadeH + fH;                // hauteur structure (cascade + fronton)
   const mat = cyberMat;
   const cre = hexToInt(V.plvCrease);
 
   // ─── DOS + FRONTON (1 panneau plein avec coins haut arrondis) ───
-  // Hauteur = baseH + shH + fH, largeur = W
-  const r = Math.min(W * 0.20, fH * 0.55);
+  const r = Math.min(W * 0.18, fH * 0.50);
   const backShape = new THREE.Shape();
   backShape.moveTo(-W/2, 0);
   backShape.lineTo(W/2, 0);
@@ -2883,31 +2883,22 @@ function buildPLVComptoir() {
   backPanel.castShadow = true; addEdges(backPanel, cre, 0.6);
   plvGroup.add(backPanel);
 
-  // ─── SOL (plancher fermé) ───
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(W, t, D), mat());
-  floor.position.set(0, t/2, 0);
-  floor.receiveShadow = true; floor.castShadow = true;
-  addEdges(floor, cre, 0.5); plvGroup.add(floor);
-
-  // ─── PAROIS LATÉRALES TRIANGULAIRES / ESCALIER ───
-  // Profil : back-bottom (-D/2,0) → back-top (-D/2, baseH+shH) → front-bottom (D/2, 0)
-  // Mais pour un effet cascade, on découpe avec marches selon nbShelves
-  const nb = S.nbShelves;
+  // ─── PAROIS LATÉRALES EN ESCALIER ───
+  // Profil : back vertical pleine hauteur (jusqu'au top de la cascade) + cascade + bottom
+  const stepW = (D - t) / nb;
   function makeComptoirSideShape() {
     const sh = new THREE.Shape();
-    const stepW = (D - t) / nb;
-    const stepH = (baseH + shH) / nb;
-    sh.moveTo(-D/2 + t/2, t);                  // back-bottom (au dessus du sol)
-    sh.lineTo(-D/2 + t/2, baseH + shH);        // back-top (sous le fronton)
-    // Escalier : top-back → ... → front-bottom
+    sh.moveTo(-D/2 + t, 0);                    // back-bottom
+    sh.lineTo(-D/2 + t, cascadeH);             // back-top (sous le fronton)
+    // Escalier : descente de back-top vers front-bottom en marches
     for (let i = 0; i < nb; i++) {
-      const x = -D/2 + t/2 + (i + 1) * stepW;
-      const yTop = (baseH + shH) - i * stepH;
-      const yBot = (baseH + shH) - (i + 1) * stepH;
+      const x = -D/2 + t + (i + 1) * stepW;
+      const yTop = cascadeH - i * stepH;
+      const yBot = cascadeH - (i + 1) * stepH;
       sh.lineTo(x, yTop);                      // tread (horizontal forward)
       sh.lineTo(x, yBot);                      // riser (vertical down)
     }
-    sh.lineTo(D/2 - t/2, t);                   // front-bottom
+    sh.lineTo(D/2 - t, 0);                     // front-bottom (au sol)
     sh.closePath();
     return sh;
   }
@@ -2920,48 +2911,40 @@ function buildPLVComptoir() {
     plvGroup.add(wall);
   }
 
-  // ─── ÉTAGÈRES CASCADE ───
+  // ─── ÉTAGÈRES CASCADE (treads horizontaux) ───
   // Pour chaque step i (0 = front-bottom, nb-1 = back-top) :
-  //   shelfY = i * stepH (hauteur du tread)
-  //   shelfDepth = (i+1) * stepW (profondeur de l'avant jusqu'au step i)
-  //   shelfZ = D/2 - shelfDepth/2 (centré contre l'avant)
-  // Mais en réalité, chaque étagère est UNE bande horizontale au niveau de chaque step
-  // La plus profonde = celle du fond (au top), la moins profonde = celle de l'avant (bas)
-  const stepW = (D - t) / nb;
-  const stepH = (baseH + shH) / nb;
+  //   step k=0 (front, bas) → tread Y = stepH, depth = stepW
+  //   step k=nb-1 (back, haut) → tread Y = nb*stepH = cascadeH, depth = nb*stepW = D - t
   for (let i = 0; i < nb; i++) {
-    // Step i counted from BACK (deepest) to FRONT (shallowest)
-    // i=0 → back step (deepest, highest)
-    // i=nb-1 → front step (shallowest, lowest)
-    const shelfDepth = (nb - i) * stepW;
-    const shelfY = (nb - i) * stepH;             // top of this step
-    const shelfZ = -D/2 + t + shelfDepth/2;      // centered against back
-    const shelf = new THREE.Mesh(new THREE.BoxGeometry(iW, sT, shelfDepth - t * 0.5), mat());
-    shelf.position.set(0, shelfY + sT/2, shelfZ);
+    // i=0 : marche la plus avant (basse, peu profonde)
+    // i=nb-1 : marche la plus arrière (haute, profonde, contre le dos)
+    const shelfDepth = (i + 1) * stepW;
+    const shelfY = (i + 1) * stepH;            // Y du tread (haut de la marche)
+    const shelfZ = -D/2 + t + shelfDepth/2;    // centré contre l'arrière
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(iW, sT, shelfDepth), mat());
+    shelf.position.set(0, shelfY - sT/2, shelfZ);
     shelf.castShadow = true; shelf.receiveShadow = true;
     addEdges(shelf, cre, 0.55); plvGroup.add(shelf);
-
-    // Front riser (paroi verticale qui ferme le step à l'avant)
-    const riser = new THREE.Mesh(new THREE.BoxGeometry(iW, stepH, t * 0.6), mat());
-    riser.position.set(0, shelfY - stepH/2, shelfZ + shelfDepth/2 - t * 0.3);
-    riser.castShadow = true; addEdges(riser, cre, 0.55); plvGroup.add(riser);
 
     // Lèvre frontale
     if (lip > 0.001) {
       const lp = new THREE.Mesh(new THREE.BoxGeometry(iW, lip, sT), mat());
-      lp.position.set(0, shelfY + sT/2 + lip/2, shelfZ + shelfDepth/2 - sT/2);
+      lp.position.set(0, shelfY + lip/2, shelfZ + shelfDepth/2 - sT/2);
       lp.castShadow = true; addEdges(lp, cre, 0.46); plvGroup.add(lp);
     }
 
     if (!S.showProducts) continue;
-    // Produits : grille facing × prodDepth (cap par profondeur dispo)
-    const innerD = shelfDepth - t * 1.5;
+    // Produits sur le tread (sur l'arrière du tread, devant la marche supérieure)
+    // Profondeur dispo = stepW (la zone visible de cette marche)
+    const innerD = stepW - t;
     const maxD = Math.max(1, Math.floor(innerD / pD));
     const dCount = Math.min(S.prodDepth, maxD);
+    // Position Z : produits sur la PARTIE AVANT du tread (la nouvelle profondeur révélée à ce niveau)
+    const innerZcenter = shelfZ + shelfDepth/2 - innerD/2 - t/2;
     for (let f = 0; f < S.facing; f++) for (let dp = 0; dp < dCount; dp++) {
       const px = -iW/2 + (f + 0.5) * pW;
-      const py = shelfY + sT + pH/2;
-      const pz = shelfZ - innerD/2 + (dp + 0.5) * pD;
+      const py = shelfY + pH/2;
+      const pz = innerZcenter - innerD/2 + (dp + 0.5) * pD;
       const pm = new THREE.MeshPhysicalMaterial({
         color: hexToInt(V.prodBody), roughness: 0.7, metalness: 0.0,
         clearcoat: 0.0, envMapIntensity: 0.0,
