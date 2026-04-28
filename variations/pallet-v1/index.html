@@ -1441,7 +1441,7 @@ let currentMode = 'plv';
 // ═══════════════════════════════════════════════════════
 const S = {
   prodW: 50, prodD: 50, prodH: 100,
-  facing: 7, prodDepth: 7, nbShelves: 4,
+  facing: 8, prodDepth: 8, nbShelves: 4,
   wallT: 4, baseH: 450, frontonH: 380,
   frontonShape: 1, shelfLip: 14, headroom: 18,
   showProducts: true,
@@ -2674,7 +2674,7 @@ window.removeFile = function(index) {
     const center = box.getCenter(new THREE.Vector3());
 
     const aspect = window.innerWidth / window.innerHeight;
-    const margin = isMobile() ? 1.18 : 1.35;
+    const margin = isMobile() ? 1.45 : 1.35;
 
     if (isMobile() && isPortrait()) {
       camera.fov = 42;
