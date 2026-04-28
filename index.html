@@ -3030,8 +3030,19 @@ function buildPLVIlot() {
     });
     document.body.appendChild(toggleBtn);
 
+    // ── Ref label discret en bas à gauche (pour identifier le modèle sur screenshots) ──
+    const refLabel = document.createElement('div');
+    refLabel.id = 'm-ref';
+    refLabel.style.cssText = 'position:fixed;bottom:90px;left:16px;z-index:1000;'
+      + 'font-family:Rajdhani,system-ui,sans-serif;font-size:11px;font-weight:700;'
+      + 'color:rgba(0,11,88,0.45);letter-spacing:0.08em;'
+      + 'pointer-events:none;user-select:none;';
+    refLabel.textContent = '#plv1';
+    document.body.appendChild(refLabel);
+
     function syncFloats() {
       if (typeof S === 'undefined') return;
+      const refs = { 'standard': '#plv1', 'pallet': '#plv2', 'ilot': '#plv3' };
       if (modelBtn) {
         const labels = { 'standard': '⊞ STANDARD', 'pallet': '⊟ PALLET', 'ilot': '⇆ TRAVERSANTE' };
         modelBtn.textContent = labels[S.plvModel] || '⊞ STANDARD';
@@ -3044,6 +3055,7 @@ function buildPLVIlot() {
         toggleBtn.style.background = S.showProducts ? 'white' : '#000B58';
         toggleBtn.style.color = S.showProducts ? '#000B58' : 'white';
       }
+      if (refLabel) refLabel.textContent = refs[S.plvModel] || '#plv1';
     }
 
     function syncDock() {
