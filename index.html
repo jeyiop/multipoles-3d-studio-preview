@@ -1994,6 +1994,7 @@ function buildPLV() {
       lp.position.set(0,sY+sT+lip/2,D/2-sT/2); lp.castShadow=true;
       addEdges(lp, plvCreaseColor, 0.46); plvGroup.add(lp);
     }
+    if (!S.showProducts) continue;
     for (let f=0;f<S.facing;f++) for (let dp=0;dp<S.prodDepth;dp++) {
       const px=-iW/2+(f+0.5)*pW, py=sY+sT+pH/2, pz=-D/2+t+(dp+0.5)*pD;
       const pm = new THREE.MeshPhysicalMaterial({
@@ -2541,14 +2542,17 @@ window.removeFile = function(index) {
 // ═══════════════════════════════════════════════════════
 function buildPLVPallet() {
   while (plvGroup.children.length) plvGroup.remove(plvGroup.children[0]);
+  // Mêmes specs paramétriques que buildPLVStandard : tout dérive de computeDims()
   const d = computeDims(), sc = 0.001;
   const W = d.plvW * sc, D = d.plvD * sc, t = S.wallT * sc;
-  const palH = 144 * sc;
-  const baseH = (S.baseH || 450) * sc;
-  const shH = 800 * sc;
-  const fH = 380 * sc;
-  const lip = (S.shelfLip || 30) * sc, sT = d.shelfT * sc;
+  const palH = 144 * sc;                       // hauteur palette EUR (fixe)
+  const baseH = S.baseH * sc;                  // base box fermée (slider)
+  const sS = d.shelfSpacing * sc;              // espacement étagères (dérivé prodH+headroom)
+  const shH = S.nbShelves * sS;                // hauteur zone étagères = nbShelves × spacing
+  const fH = S.frontonH * sc;                  // fronton (slider)
+  const lip = S.shelfLip * sc, sT = d.shelfT * sc;
   const pW = S.prodW * sc, pD = S.prodD * sc, pH = S.prodH * sc;
+  const iW = d.innerW * sc;                    // largeur intérieure étagère
   const mat = cyberMat;
   const cre = hexToInt(V.plvCrease);
 
@@ -2603,10 +2607,11 @@ function buildPLVPallet() {
   sBack.castShadow = true; addEdges(sBack, cre, 0.6); shelvesGroup.add(sBack);
 
   function makeSideShape() {
+    // Trapèze subtil : front recule de 20% de la profondeur en montant
     const sh = new THREE.Shape();
     sh.moveTo(-D/2 + t/2, 0);
     sh.lineTo(D/2 - t/2, 0);
-    sh.lineTo(-D/2 + D * 0.32, shH);
+    sh.lineTo(D/2 - t/2 - D * 0.20, shH);
     sh.lineTo(-D/2 + t/2, shH);
     sh.closePath();
     return sh;
@@ -2626,32 +2631,31 @@ function buildPLVPallet() {
     wall.castShadow = true; addEdges(wall, cre, 0.55); shelvesGroup.add(wall);
   }
 
-  const nbShelves = Math.max(1, Math.min(6, S.nbShelves || 3));
-  const shelfStep = shH / (nbShelves + 0.4);
-  for (let i = 0; i < nbShelves; i++) {
-    const sY = (i + 0.6) * shelfStep;
-    const ratio = sY / shH;
-    const shelfD = D * (1 - ratio * 0.35);
+  // Étagères : même architecture que buildPLVStandard (sY = i*sS, espacement régulier)
+  // mais profondeur shelfD se réduit avec la hauteur (parois trapèze)
+  for (let i = 0; i < S.nbShelves; i++) {
+    const sY = i * sS;
+    const ratio = shH > 0 ? (sY + sS * 0.5) / shH : 0;
+    // Profondeur étagère réduite progressivement (20% max au sommet) pour matcher les parois trapèze
+    const shelfD = D * (1 - Math.min(0.20, ratio * 0.20));
     const shelfZ = -D/2 + t + shelfD/2;
-    const shelf = new THREE.Mesh(new THREE.BoxGeometry(W - 2*t, sT, shelfD - t), mat());
-    shelf.position.set(0, sY, shelfZ);
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(iW, sT, shelfD - t), mat());
+    shelf.position.set(0, sY + sT/2, shelfZ);
     shelf.castShadow = true; shelf.receiveShadow = true;
     addEdges(shelf, cre, 0.55); shelvesGroup.add(shelf);
     if (lip > 0.001) {
-      const lp = new THREE.Mesh(new THREE.BoxGeometry(W - 2*t, lip, sT), mat());
-      lp.position.set(0, sY + sT/2 + lip/2, shelfZ + (shelfD - t)/2);
+      const lp = new THREE.Mesh(new THREE.BoxGeometry(iW, lip, sT), mat());
+      lp.position.set(0, sY + sT + lip/2, shelfZ + (shelfD - t)/2);
       lp.castShadow = true; addEdges(lp, cre, 0.46); shelvesGroup.add(lp);
     }
     if (!S.showProducts) continue;
-    const innerW = W - 2*t;
+    // Produits : même logique que buildPLVStandard (facing × prodDepth) mais on cape par la profondeur trapézoïdale
     const innerD = shelfD - t;
-    const maxF = Math.max(1, Math.floor(innerW / pW));
     const maxD = Math.max(1, Math.floor(innerD / pD));
-    const fCount = Math.min(S.facing, maxF);
     const dCount = Math.min(S.prodDepth, maxD);
-    for (let f = 0; f < fCount; f++) for (let dp = 0; dp < dCount; dp++) {
-      const px = -innerW/2 + (f + 0.5) * pW;
-      const py = sY + sT/2 + pH/2;
+    for (let f = 0; f < S.facing; f++) for (let dp = 0; dp < dCount; dp++) {
+      const px = -iW/2 + (f + 0.5) * pW;
+      const py = sY + sT + pH/2;
       const pz = shelfZ - innerD/2 + (dp + 0.5) * pD;
       const pm = new THREE.MeshPhysicalMaterial({
         color: hexToInt(V.prodBody), roughness: 0.7, metalness: 0.0,
