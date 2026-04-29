@@ -1865,6 +1865,8 @@ camera.position.set(3.2, 1.4, 3.8);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
+controls.enablePan = false;                     // verrou : pas de pan, la PLV reste centrée
+controls.screenSpacePanning = false;
 controls.minDistance = 0.3;
 controls.maxDistance = 10;
 controls.maxPolarAngle = Math.PI / 2 + 0.05;
@@ -3027,9 +3029,9 @@ function buildPLVComptoir() {
     camera.updateProjectionMatrix();
 
     if (!force && userInteracted) {
-      // Don't reset camera position, keep user's zoom/angle
-      // Just keep the target on the PLV center to avoid drift on rebuild
-      controls.target.lerp(center, 0.05);
+      // Garde l'angle/zoom de l'utilisateur, mais SNAP la cible sur le centre PLV
+      // (la PLV reste centrée à l'écran même après rebuild)
+      controls.target.copy(center);
       controls.update();
       return;
     }
@@ -3058,8 +3060,6 @@ function buildPLVComptoir() {
         buildPLVPallet();
       } else if (S.plvModel === 'ilot') {
         buildPLVIlot();
-      } else if (S.plvModel === 'comptoir') {
-        buildPLVComptoir();
       } else {
         _origBuildPLV.apply(this, arguments);
       }
@@ -3157,8 +3157,8 @@ function buildPLVComptoir() {
     modelBtn.textContent = '⊞ STANDARD';
     modelBtn.addEventListener('click', () => {
       if (typeof S === 'undefined') return;
-      // Cycle : standard → pallet → ilot → comptoir → standard
-      const cycle = { 'standard': 'pallet', 'pallet': 'ilot', 'ilot': 'comptoir', 'comptoir': 'standard' };
+      // Cycle : standard → pallet → ilot → standard (comptoir retiré, à retravailler)
+      const cycle = { 'standard': 'pallet', 'pallet': 'ilot', 'ilot': 'standard' };
       S.plvModel = cycle[S.plvModel] || 'standard';
       if (typeof rebuildPLV === 'function') rebuildPLV();
       syncFloats();
@@ -3191,9 +3191,9 @@ function buildPLVComptoir() {
 
     function syncFloats() {
       if (typeof S === 'undefined') return;
-      const refs = { 'standard': '#plv1', 'pallet': '#plv2', 'ilot': '#plv3', 'comptoir': '#plv4' };
+      const refs = { 'standard': '#plv1', 'pallet': '#plv2', 'ilot': '#plv3' };
       if (modelBtn) {
-        const labels = { 'standard': '⊞ STANDARD', 'pallet': '⊟ PALLET', 'ilot': '⇆ TRAVERSANTE', 'comptoir': '◣ COMPTOIR' };
+        const labels = { 'standard': '⊞ STANDARD', 'pallet': '⊟ PALLET', 'ilot': '⇆ TRAVERSANTE' };
         modelBtn.textContent = labels[S.plvModel] || '⊞ STANDARD';
         const isAlt = S.plvModel !== 'standard';
         modelBtn.style.background = isAlt ? '#000B58' : 'white';
