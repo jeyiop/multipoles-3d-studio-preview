@@ -2852,53 +2852,75 @@ function buildPLVComptoir() {
   while (plvGroup.children.length) plvGroup.remove(plvGroup.children[0]);
   const d = computeDims(), sc = 0.001;
   const W = d.plvW * sc, D = d.plvD * sc, t = S.wallT * sc;
-  // Comptoir : DIMENSIONS COMPACTES (display de comptoir, pas de sol)
-  const stepH = 90 * sc;                       // hauteur d'une marche (compact)
-  const fH = 200 * sc;                         // fronton compact
+  // ARCHITECTURE COMPTOIR (référence : photo 3 vues — base plinthe + cascade + fronton)
+  const baseH = 80 * sc;                       // plinthe basse (closed plinth)
+  const stepH = 90 * sc;                       // hauteur d'une marche
+  const fH = 130 * sc;                         // fronton court (rounded billboard sur la marche du fond)
   const lip = S.shelfLip * sc, sT = d.shelfT * sc;
   const pW = S.prodW * sc, pD = S.prodD * sc, pH = S.prodH * sc;
   const iW = d.innerW * sc;
-  const nb = S.nbShelves;                      // nb de marches dans la cascade
-  const cascadeH = nb * stepH;                 // hauteur totale de la cascade
-  const totalH = cascadeH + fH;                // hauteur structure (cascade + fronton)
+  const nb = S.nbShelves;
+  const cascadeH = nb * stepH;
   const mat = cyberMat;
   const cre = hexToInt(V.plvCrease);
 
-  // ─── DOS + FRONTON (1 panneau plein avec coins haut arrondis) ───
-  const r = Math.min(W * 0.18, fH * 0.50);
+  // ─── PLINTHE BASE FERMÉE (au sol) ───
+  const baseGroup = new THREE.Group();
+  // 4 panneaux + dessus + dessous
+  const baseFront = new THREE.Mesh(new THREE.BoxGeometry(W, baseH, t), mat());
+  baseFront.position.set(0, baseH/2, D/2 - t/2);
+  baseFront.castShadow = true; addEdges(baseFront, cre, 0.6); baseGroup.add(baseFront);
+  const baseBack = new THREE.Mesh(new THREE.BoxGeometry(W, baseH, t), mat());
+  baseBack.position.set(0, baseH/2, -D/2 + t/2);
+  baseBack.castShadow = true; addEdges(baseBack, cre, 0.6); baseGroup.add(baseBack);
+  for (const s of [-1, 1]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(t, baseH, D), mat());
+    wall.position.set(s * (W/2 - t/2), baseH/2, 0);
+    wall.castShadow = true; addEdges(wall, cre, 0.6); baseGroup.add(wall);
+  }
+  const baseTop = new THREE.Mesh(new THREE.BoxGeometry(W, t, D), mat());
+  baseTop.position.set(0, baseH - t/2, 0);
+  baseTop.castShadow = true; addEdges(baseTop, cre, 0.55); baseGroup.add(baseTop);
+  plvGroup.add(baseGroup);
+
+  // ─── DOS PARTIEL (haut de la cascade) + FRONTON ARRONDI ───
+  // Pas de panneau plein hauteur : juste un panneau qui ferme l'arrière de la cascade
+  // depuis le sommet de la plinthe jusqu'au fronton arrondi
+  const backTotalH = cascadeH + fH;            // hauteur du panneau arrière depuis la plinthe
+  const r = Math.min(W * 0.18, fH * 0.6);
   const backShape = new THREE.Shape();
   backShape.moveTo(-W/2, 0);
   backShape.lineTo(W/2, 0);
-  backShape.lineTo(W/2, totalH - r);
-  backShape.quadraticCurveTo(W/2, totalH, W/2 - r, totalH);
-  backShape.lineTo(-W/2 + r, totalH);
-  backShape.quadraticCurveTo(-W/2, totalH, -W/2, totalH - r);
+  backShape.lineTo(W/2, backTotalH - r);
+  backShape.quadraticCurveTo(W/2, backTotalH, W/2 - r, backTotalH);
+  backShape.lineTo(-W/2 + r, backTotalH);
+  backShape.quadraticCurveTo(-W/2, backTotalH, -W/2, backTotalH - r);
   backShape.lineTo(-W/2, 0);
   backShape.closePath();
   const backPanel = new THREE.Mesh(
     new THREE.ExtrudeGeometry(backShape, { depth: t, bevelEnabled: false }),
     mat()
   );
-  backPanel.position.set(0, 0, -D/2 + t/2);
+  backPanel.position.set(0, baseH, -D/2 + t/2);
   backPanel.castShadow = true; addEdges(backPanel, cre, 0.6);
   plvGroup.add(backPanel);
 
-  // ─── PAROIS LATÉRALES EN ESCALIER ───
-  // Profil : back vertical pleine hauteur (jusqu'au top de la cascade) + cascade + bottom
-  const stepW = (D - t) / nb;
+  // ─── PAROIS LATÉRALES TRIANGULAIRES (cascade montée sur la plinthe) ───
+  // Profil triangulaire (back haut → front bas) avec marches en escalier
+  const stepW = (D - 2*t) / nb;
   function makeComptoirSideShape() {
     const sh = new THREE.Shape();
-    sh.moveTo(-D/2 + t, 0);                    // back-bottom
-    sh.lineTo(-D/2 + t, cascadeH);             // back-top (sous le fronton)
-    // Escalier : descente de back-top vers front-bottom en marches
+    sh.moveTo(-D/2 + t, 0);                    // back-bottom (sur la plinthe)
+    sh.lineTo(-D/2 + t, cascadeH);             // back-top (haut de la cascade, sous le fronton)
+    // Escalier descendant
     for (let i = 0; i < nb; i++) {
       const x = -D/2 + t + (i + 1) * stepW;
       const yTop = cascadeH - i * stepH;
       const yBot = cascadeH - (i + 1) * stepH;
-      sh.lineTo(x, yTop);                      // tread (horizontal forward)
-      sh.lineTo(x, yBot);                      // riser (vertical down)
+      sh.lineTo(x, yTop);
+      sh.lineTo(x, yBot);
     }
-    sh.lineTo(D/2 - t, 0);                     // front-bottom (au sol)
+    sh.lineTo(D/2 - t, 0);                     // front-bottom (au-dessus de la plinthe)
     sh.closePath();
     return sh;
   }
@@ -2906,27 +2928,29 @@ function buildPLVComptoir() {
     const geo = new THREE.ExtrudeGeometry(makeComptoirSideShape(), { depth: t, bevelEnabled: false });
     const wall = new THREE.Mesh(geo, mat());
     wall.rotation.y = -Math.PI / 2;
-    wall.position.set(s > 0 ? W/2 - t : -W/2, 0, 0);
+    wall.position.set(s > 0 ? W/2 - t : -W/2, baseH, 0);
     wall.castShadow = true; addEdges(wall, cre, 0.55);
     plvGroup.add(wall);
   }
 
-  // ─── ÉTAGÈRES CASCADE (treads horizontaux) ───
-  // Pour chaque step i (0 = front-bottom, nb-1 = back-top) :
-  //   step k=0 (front, bas) → tread Y = stepH, depth = stepW
-  //   step k=nb-1 (back, haut) → tread Y = nb*stepH = cascadeH, depth = nb*stepW = D - t
+  // ─── ÉTAGÈRES CASCADE (treads horizontaux + risers verticaux) ───
   for (let i = 0; i < nb; i++) {
     // i=0 : marche la plus avant (basse, peu profonde)
     // i=nb-1 : marche la plus arrière (haute, profonde, contre le dos)
     const shelfDepth = (i + 1) * stepW;
-    const shelfY = (i + 1) * stepH;            // Y du tread (haut de la marche)
+    const shelfY = baseH + (i + 1) * stepH;    // Y du tread (sur la plinthe)
     const shelfZ = -D/2 + t + shelfDepth/2;    // centré contre l'arrière
     const shelf = new THREE.Mesh(new THREE.BoxGeometry(iW, sT, shelfDepth), mat());
     shelf.position.set(0, shelfY - sT/2, shelfZ);
     shelf.castShadow = true; shelf.receiveShadow = true;
     addEdges(shelf, cre, 0.55); plvGroup.add(shelf);
 
-    // Lèvre frontale
+    // Riser (face verticale du tread, vers l'avant) — fin
+    const riserH = stepH * 0.9;
+    const riser = new THREE.Mesh(new THREE.BoxGeometry(iW, riserH, t * 0.6), mat());
+    riser.position.set(0, shelfY - sT - riserH/2, shelfZ + shelfDepth/2 - t * 0.3);
+    riser.castShadow = true; addEdges(riser, cre, 0.5); plvGroup.add(riser);
+
     if (lip > 0.001) {
       const lp = new THREE.Mesh(new THREE.BoxGeometry(iW, lip, sT), mat());
       lp.position.set(0, shelfY + lip/2, shelfZ + shelfDepth/2 - sT/2);
@@ -2934,13 +2958,12 @@ function buildPLVComptoir() {
     }
 
     if (!S.showProducts) continue;
-    // Produits sur le tread (sur l'arrière du tread, devant la marche supérieure)
-    // Profondeur dispo = stepW (la zone visible de cette marche)
+    // Produits sur la PARTIE AVANT du tread (la nouvelle profondeur révélée à ce niveau)
     const innerD = stepW - t;
     const maxD = Math.max(1, Math.floor(innerD / pD));
     const dCount = Math.min(S.prodDepth, maxD);
-    // Position Z : produits sur la PARTIE AVANT du tread (la nouvelle profondeur révélée à ce niveau)
-    const innerZcenter = shelfZ + shelfDepth/2 - innerD/2 - t/2;
+    const frontEdgeZ = shelfZ + shelfDepth/2 - t/2;
+    const innerZcenter = frontEdgeZ - innerD/2;
     for (let f = 0; f < S.facing; f++) for (let dp = 0; dp < dCount; dp++) {
       const px = -iW/2 + (f + 0.5) * pW;
       const py = shelfY + pH/2;
