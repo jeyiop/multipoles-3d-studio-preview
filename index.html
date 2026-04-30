@@ -1176,6 +1176,25 @@ body[data-ui-theme="day"] .viewport::after {
           </div>
         </div>
 
+        <!-- Sélecteur modèle PLV (visible uniquement quand mode = PLV) -->
+        <div class="ctrl-card" id="plvModelPicker" style="padding: 10px;">
+          <div class="ctrl-title" style="margin-bottom: 8px;">Modèle</div>
+          <div class="mode-toggle" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+            <button class="mode-btn active" id="btnPlvStandard" onclick="setPlvModel('standard')" style="padding: 8px 4px;">
+              <span class="mode-icon" style="font-size:18px;">&#8862;</span>
+              <span class="mode-label" style="font-size:9px;">Standard</span>
+            </button>
+            <button class="mode-btn" id="btnPlvPallet" onclick="setPlvModel('pallet')" style="padding: 8px 4px;">
+              <span class="mode-icon" style="font-size:18px;">&#8863;</span>
+              <span class="mode-label" style="font-size:9px;">Pallet</span>
+            </button>
+            <button class="mode-btn" id="btnPlvIlot" onclick="setPlvModel('ilot')" style="padding: 8px 4px;">
+              <span class="mode-icon" style="font-size:18px;">&#8646;</span>
+              <span class="mode-label" style="font-size:9px;">Traversante</span>
+            </button>
+          </div>
+        </div>
+
         <!-- ── PLV LEFT ── -->
         <div id="plvLeft">
           <div class="ctrl-card synthesis-card">
@@ -1700,12 +1719,27 @@ window.setMode = function(mode) {
   document.getElementById('packRight').classList.toggle('hidden', mode !== 'pack');
   document.getElementById('btnParams').classList.toggle('hidden', mode !== 'plv');
   document.getElementById('dielineWrap').classList.toggle('hidden', mode !== 'pack');
+  // Sélecteur modèle PLV visible uniquement en mode PLV
+  const picker = document.getElementById('plvModelPicker');
+  if (picker) picker.classList.toggle('hidden', mode !== 'plv');
   applyThemeToScene(mode);
   if (mode === 'plv') {
     buildPLV(); updatePlvUI();
   } else {
     buildPackaging(); updatePackUI();
   }
+};
+
+// Sélecteur de variante PLV (Standard / Pallet / Traversante) — version desktop
+window.setPlvModel = function(model) {
+  if (typeof S === 'undefined') return;
+  S.plvModel = model;
+  ['standard', 'pallet', 'ilot'].forEach(m => {
+    const id = m === 'ilot' ? 'btnPlvIlot' : (m === 'pallet' ? 'btnPlvPallet' : 'btnPlvStandard');
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.toggle('active', S.plvModel === m);
+  });
+  if (typeof rebuildPLV === 'function') rebuildPLV();
 };
 
 // ═══════════════════════════════════════════════════════
