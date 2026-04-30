@@ -1048,8 +1048,13 @@ body[data-ui-theme="day"] .viewport::after {
 /* ═══════════════════════════════════════════════════════ */
 /* MOBILE OVERRIDES — pleine page, UI minimale, plv centrée */
 /* ═══════════════════════════════════════════════════════ */
-#mobile-dock { display: none; }
+/* Mobile UI flottante : cachée par défaut (desktop), visible uniquement en mobile */
+#mobile-dock, #m-model, #m-toggle, #m-ref, #m-model-menu { display: none !important; }
 @media (max-width: 768px) {
+  #m-model, #m-toggle { display: inline-flex !important; }
+  #m-ref { display: block !important; }
+  /* #m-model-menu : JS le contrôle via attribut data-open (voir IIFE mobilePatch) */
+  #m-model-menu[data-open="true"] { display: block !important; }
   body { overflow: hidden !important; }
   .app { height: 100vh !important; min-height: 100vh !important; }
   header { display: none !important; }
@@ -3230,7 +3235,7 @@ function buildPLVComptoir() {
           e.stopPropagation();
           S.plvModel = m.key;
           if (typeof rebuildPLV === 'function') rebuildPLV();
-          modelMenu.style.display = 'none';
+          modelMenu.setAttribute('data-open', 'false');
           renderModelMenu();
           syncFloats();
         });
@@ -3243,14 +3248,14 @@ function buildPLVComptoir() {
     modelBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (typeof S === 'undefined') return;
-      const isOpen = modelMenu.style.display === 'block';
-      modelMenu.style.display = isOpen ? 'none' : 'block';
+      const isOpen = modelMenu.getAttribute('data-open') === 'true';
+      modelMenu.setAttribute('data-open', isOpen ? 'false' : 'true');
       renderModelMenu();
     });
     // Close menu on outside click
     document.addEventListener('click', (e) => {
-      if (modelMenu.style.display === 'block' && !modelMenu.contains(e.target) && e.target !== modelBtn) {
-        modelMenu.style.display = 'none';
+      if (modelMenu.getAttribute('data-open') === 'true' && !modelMenu.contains(e.target) && e.target !== modelBtn) {
+        modelMenu.setAttribute('data-open', 'false');
       }
     });
 
