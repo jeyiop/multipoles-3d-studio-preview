@@ -1298,6 +1298,21 @@ body[data-ui-theme="day"] .viewport::after {
             <div class="pack-synth-sub" id="packSynthSub">Offset | Mat</div>
           </div>
 
+          <!-- Sélecteur modèle pack -->
+          <div class="ctrl-card" style="padding: 10px;">
+            <div class="ctrl-title" style="margin-bottom: 8px;">Modèle</div>
+            <div class="mode-toggle" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <button class="mode-btn active" id="btnPackTuck" onclick="setPackModel('tuck')" style="padding: 8px 4px;">
+                <span class="mode-icon" style="font-size:18px;">&#9634;</span>
+                <span class="mode-label" style="font-size:9px;">Étui</span>
+              </button>
+              <button class="mode-btn" id="btnPackCoffret" onclick="setPackModel('coffret')" style="padding: 8px 4px;">
+                <span class="mode-icon" style="font-size:18px;">&#9783;</span>
+                <span class="mode-label" style="font-size:9px;">Coffret</span>
+              </button>
+            </div>
+          </div>
+
           <div class="ctrl-card">
             <div class="ctrl-title">Dimensions etui</div>
             <div class="perso-presets" style="margin-bottom:8px">
@@ -1515,6 +1530,9 @@ const P = {
   printType: 'offset', finish: 'mat',
   paper: 'blanc-blanc', colors: 4,
   luxe: [],
+  packModel: 'tuck',                   // 'tuck' | 'coffret'
+  coffretCompartH: 2, coffretCompartW: 2,  // grille interne pour coffret (lignes × colonnes)
+  coffretLidAngle: 110,                // angle d'ouverture du couvercle en degrés
 };
 
 const V = {
@@ -1740,6 +1758,17 @@ window.setPlvModel = function(model) {
     if (btn) btn.classList.toggle('active', S.plvModel === m);
   });
   if (typeof rebuildPLV === 'function') rebuildPLV();
+};
+
+// Sélecteur de variante Pack (Étui tuck / Coffret) — version desktop
+window.setPackModel = function(model) {
+  if (typeof P === 'undefined') return;
+  P.packModel = model;
+  const tuck = document.getElementById('btnPackTuck');
+  const cof = document.getElementById('btnPackCoffret');
+  if (tuck) tuck.classList.toggle('active', P.packModel === 'tuck');
+  if (cof) cof.classList.toggle('active', P.packModel === 'coffret');
+  if (typeof rebuildPack === 'function') rebuildPack();
 };
 
 // ═══════════════════════════════════════════════════════
@@ -2095,6 +2124,12 @@ function buildPLV() {
 // PACKAGING 3D — CYBERPUNK
 // ═══════════════════════════════════════════════════════
 function buildPackaging() {
+  // Dispatch selon le modèle de pack choisi
+  if (P.packModel === 'coffret') {
+    buildPackagingCoffret();
+    return;
+  }
+  // ----- Modèle tuck-end (par défaut) -----
   while (plvGroup.children.length) plvGroup.remove(plvGroup.children[0]);
   const sc = 0.001;
   const L = P.boxW * sc, D = P.boxD * sc, H = P.boxH * sc;
@@ -2207,6 +2242,106 @@ function buildPackaging() {
 // ═══════════════════════════════════════════════════════
 // DIELINE 2D — CYBERPUNK
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// PACKAGING 3D — COFFRET (boîte cadeau avec couvercle articulé + cloisons internes)
+// ═══════════════════════════════════════════════════════
+function buildPackagingCoffret() {
+  while (plvGroup.children.length) plvGroup.remove(plvGroup.children[0]);
+  const sc = 0.001;
+  const L = P.boxW * sc, D = P.boxD * sc, H = P.boxH * sc;
+  const th = Math.max(L, D, H) * 0.012;        // épaisseur paroi
+  const lidH = H * 0.18;                       // hauteur du couvercle (~18% de la hauteur totale)
+  const bodyH = H - lidH;                      // hauteur du corps de la boîte
+  const lidAngle = (P.coffretLidAngle || 110) * Math.PI / 180;
+
+  const roughness = P.finish === 'mat' ? 0.55 : P.finish === 'satine' ? 0.25 : 0.05;
+  const creaseColor = hexToInt(V.packCrease);
+  const base = new THREE.Color(V.packBase);
+  const packMat = (op = 0.5) => new THREE.MeshPhysicalMaterial({
+    color: base, roughness: roughness, metalness: 0.06,
+    clearcoat: 0.06, clearcoatRoughness: 0.85,
+    envMapIntensity: 0.15, reflectivity: 0.15,
+    transparent: true, opacity: op, side: THREE.DoubleSide
+  });
+  const dividerMat = () => new THREE.MeshStandardMaterial({
+    color: base.clone().multiplyScalar(0.85), roughness: 0.85, metalness: 0.0,
+    transparent: true, opacity: 0.42, side: THREE.DoubleSide
+  });
+
+  // ─── CORPS DE LA BOÎTE (4 parois + fond) ───
+  const body = new THREE.Group();
+  // Fond
+  const bottom = new THREE.Mesh(new THREE.BoxGeometry(L, th, D), packMat(0.55));
+  bottom.position.set(0, th/2, 0);
+  bottom.castShadow = true; bottom.receiveShadow = true;
+  addEdges(bottom, creaseColor, 0.6); body.add(bottom);
+  // Façades avant/arrière
+  const front = new THREE.Mesh(new THREE.BoxGeometry(L, bodyH, th), packMat(0.42));
+  front.position.set(0, bodyH/2, D/2 - th/2);
+  front.castShadow = true; addEdges(front, creaseColor, 0.6); body.add(front);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(L, bodyH, th), packMat(0.42));
+  back.position.set(0, bodyH/2, -D/2 + th/2);
+  back.castShadow = true; addEdges(back, creaseColor, 0.6); body.add(back);
+  // Côtés
+  for (const s of [-1, 1]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(th, bodyH, D), packMat(0.42));
+    wall.position.set(s * (L/2 - th/2), bodyH/2, 0);
+    wall.castShadow = true; addEdges(wall, creaseColor, 0.6); body.add(wall);
+  }
+  plvGroup.add(body);
+
+  // ─── CLOISONS INTERNES (grille compartiments) ───
+  const cols = Math.max(1, P.coffretCompartW || 2);
+  const rows = Math.max(1, P.coffretCompartH || 2);
+  const innerW = L - 2*th;
+  const innerD = D - 2*th;
+  // Cloisons verticales (parallèles à l'axe Z)
+  for (let i = 1; i < cols; i++) {
+    const x = -L/2 + th + (innerW * i / cols);
+    const div = new THREE.Mesh(new THREE.BoxGeometry(th * 0.7, bodyH * 0.92, innerD - th * 0.4), dividerMat());
+    div.position.set(x, th + bodyH * 0.46, 0);
+    div.castShadow = true; addEdges(div, creaseColor, 0.55);
+    plvGroup.add(div);
+  }
+  // Cloisons horizontales (parallèles à l'axe X)
+  for (let i = 1; i < rows; i++) {
+    const z = -D/2 + th + (innerD * i / rows);
+    const div = new THREE.Mesh(new THREE.BoxGeometry(innerW - th * 0.4, bodyH * 0.92, th * 0.7), dividerMat());
+    div.position.set(0, th + bodyH * 0.46, z);
+    div.castShadow = true; addEdges(div, creaseColor, 0.55);
+    plvGroup.add(div);
+  }
+
+  // ─── COUVERCLE ARTICULÉ (charnière à l'arrière, ouverture vers l'avant) ───
+  const lid = new THREE.Group();
+  // Construit le couvercle dans son repère local : charnière en (0,0,0), s'étend en avant (+Z)
+  // Top du couvercle
+  const lidTop = new THREE.Mesh(new THREE.BoxGeometry(L, th, D), packMat(0.55));
+  lidTop.position.set(0, lidH - th/2, D/2 - th/2);
+  lidTop.castShadow = true; addEdges(lidTop, creaseColor, 0.6); lid.add(lidTop);
+  // Façades avant/arrière du couvercle
+  const lidFront = new THREE.Mesh(new THREE.BoxGeometry(L, lidH, th), packMat(0.42));
+  lidFront.position.set(0, lidH/2, D - th/2);
+  lidFront.castShadow = true; addEdges(lidFront, creaseColor, 0.6); lid.add(lidFront);
+  const lidBack = new THREE.Mesh(new THREE.BoxGeometry(L, lidH, th), packMat(0.42));
+  lidBack.position.set(0, lidH/2, th/2);
+  lidBack.castShadow = true; addEdges(lidBack, creaseColor, 0.6); lid.add(lidBack);
+  // Côtés du couvercle
+  for (const s of [-1, 1]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(th, lidH, D), packMat(0.42));
+    wall.position.set(s * (L/2 - th/2), lidH/2, D/2 - th/2);
+    wall.castShadow = true; addEdges(wall, creaseColor, 0.6); lid.add(wall);
+  }
+  // Pivote à la charnière arrière
+  lid.position.set(0, bodyH, -D/2 + th/2);
+  lid.rotation.x = -lidAngle;
+  plvGroup.add(lid);
+
+  const techFill = new THREE.DirectionalLight(0xffffff, 0.16);
+  techFill.position.set(-2, 3, 1.2);
+  plvGroup.add(techFill);
+}
+
 function drawDieline(bW, bD, bH) {
   let cvs = document.getElementById('dielineCanvas');
   if (!cvs) return;
