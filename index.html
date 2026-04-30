@@ -1062,23 +1062,26 @@ body[data-ui-theme="day"] .viewport::after {
     border-radius: 0 !important; border: none !important;
     margin: 0 !important;
   }
+  /* Dock vertical sur le BORD DROIT (mode portrait mobile) */
   #mobile-dock {
     display: flex !important;
-    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-    gap: 6px; z-index: 1000; align-items: stretch;
+    flex-direction: column;
+    position: fixed; right: 12px; top: 50%; bottom: auto; left: auto;
+    transform: translateY(-50%);
+    gap: 8px; z-index: 1000; align-items: stretch;
     background: rgba(255,255,255,0.94); backdrop-filter: blur(10px);
-    padding: 6px 10px; border-radius: 18px;
+    padding: 10px 8px; border-radius: 18px;
     box-shadow: 0 6px 22px rgba(0,11,88,0.22);
     font-family: 'Rajdhani', system-ui, sans-serif;
     border: 1px solid rgba(0,11,88,0.08);
-    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 140px);
   }
   #mobile-dock .group {
     display: flex; flex-direction: column; align-items: center;
-    gap: 2px; padding: 2px 4px;
+    gap: 3px; padding: 3px 2px;
   }
   #mobile-dock .row { display: flex; align-items: center; gap: 4px; }
-  #mobile-dock .sep { width: 1px; background: rgba(0,11,88,0.12); margin: 4px 2px; }
+  #mobile-dock .sep { height: 1px; width: 36px; background: rgba(0,11,88,0.12); margin: 2px auto; }
   #mobile-dock button {
     width: 32px; height: 32px; border-radius: 9999px;
     border: 1px solid rgba(0,11,88,0.18); background: white;
@@ -1097,10 +1100,41 @@ body[data-ui-theme="day"] .viewport::after {
     min-width: 18px; text-align: center; font-size: 14px; font-weight: 800;
     color: #000B58;
   }
+  /* Décale la ref label pour pas se cacher derrière le dock */
+  #m-ref { bottom: 16px !important; }
+}
+
+/* Landscape lock pour mobile : invite à tourner en portrait */
+#landscape-lock {
+  display: none;
+  position: fixed; inset: 0; z-index: 99999;
+  background: rgba(255,255,255,0.98);
+  align-items: center; justify-content: center;
+  font-family: 'Rajdhani', system-ui, sans-serif;
+  color: #000B58; text-align: center; padding: 24px;
+  flex-direction: column; gap: 16px;
+}
+#landscape-lock .icon {
+  font-size: 48px;
+  animation: rotate-hint 2s ease-in-out infinite;
+}
+#landscape-lock h2 { font-size: 22px; font-weight: 800; letter-spacing: 0.04em; }
+#landscape-lock p { font-size: 14px; opacity: 0.7; max-width: 280px; }
+@keyframes rotate-hint {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-90deg); }
+}
+@media (max-width: 900px) and (orientation: landscape) {
+  #landscape-lock { display: flex !important; }
 }
 </style>
 </head>
 <body data-ui-theme="day" data-visual-preset="light_navy">
+<div id="landscape-lock">
+  <div class="icon">📱</div>
+  <h2>Mode portrait recommandé</h2>
+  <p>Le simulateur s'utilise mieux téléphone à la verticale. Tourne ton appareil.</p>
+</div>
 
 <div class="app">
   <header>
@@ -3154,16 +3188,71 @@ function buildPLVComptoir() {
     modelBtn.id = 'm-model';
     modelBtn.setAttribute('aria-label', 'Modèle PLV');
     modelBtn.style.cssText = floatBtnStyle + 'left:16px;';
-    modelBtn.textContent = '⊞ STANDARD';
-    modelBtn.addEventListener('click', () => {
-      if (typeof S === 'undefined') return;
-      // Cycle : standard → pallet → ilot → standard (comptoir retiré, à retravailler)
-      const cycle = { 'standard': 'pallet', 'pallet': 'ilot', 'ilot': 'standard' };
-      S.plvModel = cycle[S.plvModel] || 'standard';
-      if (typeof rebuildPLV === 'function') rebuildPLV();
-      syncFloats();
-    });
+    modelBtn.textContent = '⊞ STANDARD ▾';
     document.body.appendChild(modelBtn);
+
+    // ── Menu déroulant des modèles (sous le bouton) ──
+    const modelMenu = document.createElement('div');
+    modelMenu.id = 'm-model-menu';
+    modelMenu.style.cssText = 'position:fixed;top:62px;left:16px;z-index:1002;'
+      + 'background:white;border:1px solid rgba(0,11,88,0.12);border-radius:14px;'
+      + 'box-shadow:0 8px 28px rgba(0,11,88,0.22);'
+      + 'font-family:Rajdhani,system-ui,sans-serif;'
+      + 'min-width:180px;padding:6px;display:none;';
+    const MODEL_LIST = [
+      { key: 'standard', label: 'Standard', ref: '#plv1', icon: '⊞' },
+      { key: 'pallet',   label: 'Pallet',   ref: '#plv2', icon: '⊟' },
+      { key: 'ilot',     label: 'Traversante', ref: '#plv3', icon: '⇆' }
+    ];
+    function renderModelMenu() {
+      modelMenu.innerHTML = '';
+      MODEL_LIST.forEach(m => {
+        const item = document.createElement('button');
+        const isActive = (S.plvModel === m.key);
+        item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;'
+          + 'width:100%;padding:10px 12px;border-radius:9px;border:none;cursor:pointer;'
+          + 'font-family:Rajdhani,system-ui,sans-serif;font-size:13px;font-weight:700;'
+          + 'letter-spacing:0.04em;text-align:left;margin-bottom:2px;'
+          + 'background:' + (isActive ? '#000B58' : 'transparent')
+          + ';color:' + (isActive ? 'white' : '#000B58')
+          + ';transition:background 0.12s;';
+        item.innerHTML = '<span style="display:flex;align-items:center;gap:10px;">'
+          + '<span style="font-size:16px;opacity:0.75;">' + m.icon + '</span>'
+          + '<span>' + m.label.toUpperCase() + '</span></span>'
+          + '<span style="font-size:10px;opacity:0.55;">' + m.ref + '</span>';
+        item.addEventListener('mouseenter', () => {
+          if (!isActive) item.style.background = 'rgba(0,11,88,0.06)';
+        });
+        item.addEventListener('mouseleave', () => {
+          if (!isActive) item.style.background = 'transparent';
+        });
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          S.plvModel = m.key;
+          if (typeof rebuildPLV === 'function') rebuildPLV();
+          modelMenu.style.display = 'none';
+          renderModelMenu();
+          syncFloats();
+        });
+        modelMenu.appendChild(item);
+      });
+    }
+    renderModelMenu();
+    document.body.appendChild(modelMenu);
+
+    modelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (typeof S === 'undefined') return;
+      const isOpen = modelMenu.style.display === 'block';
+      modelMenu.style.display = isOpen ? 'none' : 'block';
+      renderModelMenu();
+    });
+    // Close menu on outside click
+    document.addEventListener('click', (e) => {
+      if (modelMenu.style.display === 'block' && !modelMenu.contains(e.target) && e.target !== modelBtn) {
+        modelMenu.style.display = 'none';
+      }
+    });
 
     // ── Floating: toggle PLEIN/VIDE (top-right) ──
     const toggleBtn = document.createElement('button');
@@ -3193,8 +3282,8 @@ function buildPLVComptoir() {
       if (typeof S === 'undefined') return;
       const refs = { 'standard': '#plv1', 'pallet': '#plv2', 'ilot': '#plv3' };
       if (modelBtn) {
-        const labels = { 'standard': '⊞ STANDARD', 'pallet': '⊟ PALLET', 'ilot': '⇆ TRAVERSANTE' };
-        modelBtn.textContent = labels[S.plvModel] || '⊞ STANDARD';
+        const labels = { 'standard': '⊞ STANDARD ▾', 'pallet': '⊟ PALLET ▾', 'ilot': '⇆ TRAVERSANTE ▾' };
+        modelBtn.textContent = labels[S.plvModel] || '⊞ STANDARD ▾';
         const isAlt = S.plvModel !== 'standard';
         modelBtn.style.background = isAlt ? '#000B58' : 'white';
         modelBtn.style.color = isAlt ? 'white' : '#000B58';
