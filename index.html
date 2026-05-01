@@ -3373,16 +3373,48 @@ function buildPLVComptoir() {
       + 'box-shadow:0 8px 28px rgba(0,11,88,0.22);'
       + 'font-family:Rajdhani,system-ui,sans-serif;'
       + 'min-width:180px;padding:6px;display:none;';
-    const MODEL_LIST = [
+    const PLV_LIST = [
       { key: 'standard', label: 'Standard', ref: '#plv1', icon: '⊞' },
       { key: 'pallet',   label: 'Pallet',   ref: '#plv2', icon: '⊟' },
       { key: 'ilot',     label: 'Traversante', ref: '#plv3', icon: '⇆' }
     ];
+    const PACK_LIST = [
+      { key: 'tuck',    label: 'Étui',    ref: '#pack1', icon: '▢' },
+      { key: 'coffret', label: 'Coffret', ref: '#pack2', icon: '☷' }
+    ];
+    function getCurrentTab() {
+      return (typeof currentMode !== 'undefined' && currentMode === 'pack') ? 'pack' : 'plv';
+    }
     function renderModelMenu() {
       modelMenu.innerHTML = '';
-      MODEL_LIST.forEach(m => {
+      // Onglets PLV / Pack
+      const tabs = document.createElement('div');
+      tabs.style.cssText = 'display:flex;gap:4px;padding:4px;background:rgba(0,11,88,0.05);border-radius:9px;margin-bottom:6px;';
+      ['plv', 'pack'].forEach(tab => {
+        const tabBtn = document.createElement('button');
+        const isActiveTab = getCurrentTab() === tab;
+        tabBtn.style.cssText = 'flex:1;padding:7px 4px;border-radius:7px;border:none;cursor:pointer;'
+          + 'font-family:Rajdhani,system-ui,sans-serif;font-size:11px;font-weight:800;letter-spacing:0.08em;'
+          + 'background:' + (isActiveTab ? 'white' : 'transparent')
+          + ';color:#000B58;'
+          + (isActiveTab ? 'box-shadow:0 1px 4px rgba(0,11,88,0.15);' : '');
+        tabBtn.textContent = tab === 'plv' ? 'PLV' : 'PACKAGING';
+        tabBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (typeof window.setMode === 'function') window.setMode(tab);
+          renderModelMenu();
+          syncFloats();
+        });
+        tabs.appendChild(tabBtn);
+      });
+      modelMenu.appendChild(tabs);
+
+      const isPLV = getCurrentTab() === 'plv';
+      const list = isPLV ? PLV_LIST : PACK_LIST;
+      const activeKey = isPLV ? S.plvModel : P.packModel;
+      list.forEach(m => {
         const item = document.createElement('button');
-        const isActive = (S.plvModel === m.key);
+        const isActive = (activeKey === m.key);
         item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;'
           + 'width:100%;padding:10px 12px;border-radius:9px;border:none;cursor:pointer;'
           + 'font-family:Rajdhani,system-ui,sans-serif;font-size:13px;font-weight:700;'
@@ -3394,16 +3426,15 @@ function buildPLVComptoir() {
           + '<span style="font-size:16px;opacity:0.75;">' + m.icon + '</span>'
           + '<span>' + m.label.toUpperCase() + '</span></span>'
           + '<span style="font-size:10px;opacity:0.55;">' + m.ref + '</span>';
-        item.addEventListener('mouseenter', () => {
-          if (!isActive) item.style.background = 'rgba(0,11,88,0.06)';
-        });
-        item.addEventListener('mouseleave', () => {
-          if (!isActive) item.style.background = 'transparent';
-        });
         item.addEventListener('click', (e) => {
           e.stopPropagation();
-          S.plvModel = m.key;
-          if (typeof rebuildPLV === 'function') rebuildPLV();
+          if (isPLV) {
+            S.plvModel = m.key;
+            if (typeof rebuildPLV === 'function') rebuildPLV();
+          } else {
+            P.packModel = m.key;
+            if (typeof rebuildPack === 'function') rebuildPack();
+          }
           modelMenu.setAttribute('data-open', 'false');
           renderModelMenu();
           syncFloats();
@@ -3454,11 +3485,18 @@ function buildPLVComptoir() {
 
     function syncFloats() {
       if (typeof S === 'undefined') return;
-      const refs = { 'standard': '#plv1', 'pallet': '#plv2', 'ilot': '#plv3' };
+      const isPackMode = (typeof currentMode !== 'undefined' && currentMode === 'pack');
+      const plvRefs = { 'standard': '#plv1', 'pallet': '#plv2', 'ilot': '#plv3' };
+      const packRefs = { 'tuck': '#pack1', 'coffret': '#pack2' };
+      const refs = isPackMode ? packRefs : plvRefs;
+      const refKey = isPackMode ? P.packModel : S.plvModel;
       if (modelBtn) {
-        const labels = { 'standard': '⊞ STANDARD ▾', 'pallet': '⊟ PALLET ▾', 'ilot': '⇆ TRAVERSANTE ▾' };
-        modelBtn.textContent = labels[S.plvModel] || '⊞ STANDARD ▾';
-        const isAlt = S.plvModel !== 'standard';
+        const plvLabels = { 'standard': '⊞ STANDARD ▾', 'pallet': '⊟ PALLET ▾', 'ilot': '⇆ TRAVERSANTE ▾' };
+        const packLabels = { 'tuck': '▢ ÉTUI ▾', 'coffret': '☷ COFFRET ▾' };
+        modelBtn.textContent = isPackMode
+          ? (packLabels[P.packModel] || '▢ ÉTUI ▾')
+          : (plvLabels[S.plvModel] || '⊞ STANDARD ▾');
+        const isAlt = isPackMode || S.plvModel !== 'standard';
         modelBtn.style.background = isAlt ? '#000B58' : 'white';
         modelBtn.style.color = isAlt ? 'white' : '#000B58';
       }
@@ -3467,7 +3505,10 @@ function buildPLVComptoir() {
         toggleBtn.style.background = S.showProducts ? 'white' : '#000B58';
         toggleBtn.style.color = S.showProducts ? '#000B58' : 'white';
       }
-      if (refLabel) refLabel.textContent = refs[S.plvModel] || '#plv1';
+      if (refLabel) refLabel.textContent = refs[refKey] || '#plv1';
+      // Cacher le dock latéral en mode Pack (les +/- étagères/facing ne s'appliquent pas)
+      const dockEl = document.getElementById('mobile-dock');
+      if (dockEl) dockEl.style.visibility = isPackMode ? 'hidden' : 'visible';
     }
 
     function syncDock() {
